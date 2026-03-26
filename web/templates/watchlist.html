@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ninja Trader - Watchlist</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 0; background: #f5f5f5; }
+        .nav { display: flex; gap: 0; background: #333; padding: 0 1rem; }
+        .nav a { color: #ccc; text-decoration: none; padding: 0.75rem 1.5rem; }
+        .nav a:hover { background: #444; color: #fff; }
+        .nav a.active { color: #fff; border-bottom: 2px solid #4CAF50; }
+        .content { padding: 2rem; }
+        table { border-collapse: collapse; width: 100%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th, td { padding: 0.5rem 1rem; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #333; color: #fff; position: sticky; top: 0; }
+        tr:hover { background: #f0f0f0; }
+        a.symbol-link { color: #1a73e8; text-decoration: none; font-weight: 500; }
+        a.symbol-link:hover { text-decoration: underline; }
+        .empty { color: #888; padding: 2rem; text-align: center; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .search-box { margin-bottom: 1rem; display: flex; gap: 0.5rem; }
+        .search-box input { padding: 0.5rem 1rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; width: 300px; }
+        .search-box button { padding: 0.5rem 1.5rem; background: #4CAF50; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; }
+        .search-box button:hover { background: #45a049; }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="/">Instruments</a>
+        <a href="/watchlist" class="active">Watchlist</a>
+        <a href="/shorts">Short Trades</a>
+        <a href="/admin">Admin</a>
+    </nav>
+    <div class="content">
+        <h1>Watchlist</h1>
+        <form class="search-box" method="GET" action="/watchlist">
+            <input type="text" name="q" placeholder="Search by symbol..." value="{{.Query}}" autofocus>
+            <button type="submit">Search</button>
+            {{if .Query}}<a href="/watchlist" style="padding:0.5rem 1rem;line-height:2;color:#666;">Clear</a>{{end}}
+        </form>
+        {{if .Instruments}}
+        <table>
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Full Name</th>
+                    <th>Exchange</th>
+                    <th>Market Cap</th>
+                    <th>Price Band</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Instruments}}
+                <tr>
+                    <td><a class="symbol-link" href="/instrument?symbol={{.TradingSymbol}}&watchlist=1">{{.TradingSymbol}}</a></td>
+                    <td>{{.InstrumentFullName}}</td>
+                    <td>{{.Exchange}}</td>
+                    <td>{{printf "%.0f" .MarketCap}}</td>
+                    <td>{{.PriceBand}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{else}}
+        <div class="empty">No instruments in your watchlist yet. Press <strong>W</strong> on any instrument to add it.</div>
+        {{end}}
+    </div>
+</body>
+</html>

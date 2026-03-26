@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ninja Trader - {{.Symbol}}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 0; background: #f5f5f5; }
+        .nav { display: flex; gap: 0; background: #333; padding: 0 1rem; }
+        .nav a { color: #ccc; text-decoration: none; padding: 0.75rem 1.5rem; }
+        .nav a:hover { background: #444; color: #fff; }
+        .nav a.active { color: #fff; border-bottom: 2px solid #4CAF50; }
+        .content { padding: 2rem; }
+        .back { color: #1a73e8; text-decoration: none; font-size: 0.95rem; }
+        .back:hover { text-decoration: underline; }
+        .chart-container { background: #fff; border-radius: 8px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 1rem; min-width: 0; }
+        .charts-row { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
+        .no-data { color: #888; padding: 2rem; text-align: center; }
+        .instrument-header { background: #fff; border-radius: 8px; padding: 1.25rem 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 1rem; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+        .instrument-header h1 { margin: 0; font-size: 1.8rem; letter-spacing: 0.5px; }
+        .instrument-header .fullname { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 0.2rem; }
+        .instrument-header a { padding: 0.4rem 1rem; border-radius: 4px; text-decoration: none; color: #333; background: #f5f5f5; border: 1px solid #ccc; font-size: 0.9rem; }
+        .instrument-header a:hover { background: #eee; }
+        .instrument-meta { display: flex; gap: 2rem; margin-top: 0.75rem; flex-wrap: wrap; }
+        .instrument-meta .meta-item { display: flex; flex-direction: column; }
+        .instrument-meta .meta-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.6px; color: #aaa; }
+        .instrument-meta .meta-value { font-size: 1.25rem; font-weight: 600; color: #333; margin-top: 0.1rem; }
+        .watchlist-btn { padding: 0.4rem 1rem; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; font-size: 0.9rem; }
+        .watchlist-btn.active { background: #4CAF50; color: #fff; border-color: #4CAF50; }
+        .watchlist-btn.inactive { background: #fff; color: #333; }
+        .toast { position: fixed; top: 4rem; right: 1.5rem; background: #333; color: #fff; padding: 0.8rem 1.8rem; border-radius: 6px; font-size: 1.05rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+        .toast.show { opacity: 1; }
+        .filters { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+        .filters a { padding: 0.4rem 1rem; border-radius: 4px; text-decoration: none; color: #333; background: #fff; border: 1px solid #ccc; font-size: 0.9rem; }
+        .filters a:hover { background: #eee; }
+        .filters a.active { background: #4CAF50; color: #fff; border-color: #4CAF50; }
+        .msg { padding: 0.5rem 1rem; background: #d4edda; color: #155724; border-radius: 4px; margin-top: 0.5rem; display: inline-block; }
+        .admin-section { margin-top: 1rem; }
+        .admin-toggle { background: none; border: none; color: #888; font-size: 0.85rem; cursor: pointer; padding: 0; }
+        .admin-toggle:hover { color: #333; }
+        .admin-forms { display: none; margin-top: 0.75rem; padding: 1rem; background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; display: flex; flex-direction: column; gap: 0.75rem; }
+        .sync-form { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+        .sync-form label { font-size: 0.9rem; color: #555; }
+        .sync-form input[type="date"] { padding: 0.4rem 0.6rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
+        .sync-form button { padding: 0.4rem 1rem; background: #4CAF50; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
+        .sync-form button:hover { background: #45a049; }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="/" class="active">Instruments</a>
+        <a href="/watchlist">Watchlist</a>
+        <a href="/shorts">Short Trades</a>
+        <a href="/admin">Admin</a>
+    </nav>
+    <div class="content">
+        <a class="back" href="/">← Back to Instruments</a>
+        <div class="instrument-header">
+            <div>
+                <div style="display:flex;align-items:baseline;gap:0.75rem">
+                    <h1>{{if .FullName}}{{.FullName}}{{else}}{{.Symbol}}{{end}}</h1>
+                    {{if .FullName}}<span class="fullname">{{.Symbol}}</span>{{end}}
+                </div>
+                <div class="instrument-meta">
+                    {{if .MarketCap}}<div class="meta-item"><span class="meta-label">Market Cap</span><span class="meta-value">₹{{.MarketCap}}</span></div>{{end}}
+                    {{if .BasicIndustry}}<div class="meta-item"><span class="meta-label">Industry</span><span class="meta-value">{{.BasicIndustry}}</span></div>{{end}}
+                    {{if .Index}}<div class="meta-item"><span class="meta-label">Index</span><span class="meta-value">{{.Index}}</span></div>{{end}}
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+                {{if .PrevSymbol}}<a id="prevLink" href="/instrument?symbol={{.PrevSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}">← {{.PrevSymbol}}</a>{{end}}
+                {{if .NextSymbol}}<a id="nextLink" href="/instrument?symbol={{.NextSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}">{{.NextSymbol}} →</a>{{end}}
+                <form method="POST" action="/instrument/watchlist" style="margin:0">
+                    <input type="hidden" name="symbol" value="{{.Symbol}}">
+                    <input type="hidden" name="watchlist_only" value="{{if .WatchlistOnly}}1{{end}}">
+                    <input type="hidden" name="period" value="{{.Period}}">
+                    <button id="watchlistBtn" type="submit" class="watchlist-btn {{if .Watchlist}}active{{else}}inactive{{end}}">
+                        {{if .Watchlist}}★ Watchlist{{else}}☆ Watchlist{{end}}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {{if eq .Msg "sync_started"}}<div class="msg">Trade history sync started in background.</div>{{end}}
+        {{if eq .Msg "adj_sync_started"}}<div class="msg">Adjusted close price sync started in background.</div>{{end}}
+        {{if eq .Msg "daily_sync_started"}}<div class="msg">Daily data sync started in background.</div>{{end}}
+
+        <div class="admin-section">
+            <button class="admin-toggle" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'flex':'none'">⚙ Admin</button>
+            <div class="admin-forms" style="display:none">
+                <form class="sync-form" method="POST" action="/instrument/sync-adj-close">
+                    <input type="hidden" name="symbol" value="{{.Symbol}}">
+                    <button type="submit">Sync Adj. Close &amp; Events</button>
+                </form>
+                <form class="sync-form" method="POST" action="/instrument/process-daily">
+                    <input type="hidden" name="symbol" value="{{.Symbol}}">
+                    <button type="submit">Process Daily Data</button>
+                </form>
+                <form class="sync-form" method="POST" action="/instrument/sync-history">
+                    <input type="hidden" name="symbol" value="{{.Symbol}}">
+                    <label>From</label>
+                    <input type="date" name="from" value="2020-01-01" required>
+                    <label>To</label>
+                    <input type="date" name="to" required value="2026-03-21">
+                    <button type="submit">Sync Trade History</button>
+                </form>
+            </div>
+        </div>
+
+
+        <div class="filters">
+            <a id="period-1" href="/instrument?symbol={{.Symbol}}&period=1m{{if .WatchlistOnly}}&watchlist=1{{end}}" class="{{if eq .Period "1m"}}active{{end}}">1M</a>
+            <a id="period-2" href="/instrument?symbol={{.Symbol}}&period=6m{{if .WatchlistOnly}}&watchlist=1{{end}}" class="{{if eq .Period "6m"}}active{{end}}">6M</a>
+            <a id="period-3" href="/instrument?symbol={{.Symbol}}&period=1y{{if .WatchlistOnly}}&watchlist=1{{end}}" class="{{if eq .Period "1y"}}active{{end}}">1Yr</a>
+            <a id="period-4" href="/instrument?symbol={{.Symbol}}&period=3y{{if .WatchlistOnly}}&watchlist=1{{end}}" class="{{if eq .Period "3y"}}active{{end}}">3Yr</a>
+            <a id="period-5" href="/instrument?symbol={{.Symbol}}&period=5y{{if .WatchlistOnly}}&watchlist=1{{end}}" class="{{if eq .Period "5y"}}active{{end}}">5Yr</a>
+            <a id="period-6" href="/instrument?symbol={{.Symbol}}&period=10y{{if .WatchlistOnly}}&watchlist=1{{end}}" class="{{if eq .Period "10y"}}active{{end}}">10Yr</a>
+            <a id="period-0" href="/instrument?symbol={{.Symbol}}&period=max{{if .WatchlistOnly}}&watchlist=1{{end}}" class="{{if eq .Period "max"}}active{{end}}">Max</a>
+        </div>
+
+        <div class="charts-row">
+            <div class="chart-container">
+                <h3>Adj. Close Price & Volume/Trade</h3>
+                <canvas id="priceChart"></canvas>
+                <div class="no-data" id="noPriceData" style="display:none;">No historical price data available.</div>
+            </div>
+
+            <div class="chart-container">
+                <h3>Volume &amp; No. of Trades</h3>
+                <canvas id="volumeTradesChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h3>Short Selling Quantity</h3>
+                <canvas id="shortsChart"></canvas>
+                <div class="no-data" id="noShortsData" style="display:none;">No short selling data available.</div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const watchlistForm = document.querySelector('form[action="/instrument/watchlist"]');
+        watchlistForm?.addEventListener('submit', async e => {
+            e.preventDefault();
+            const btn = document.getElementById('watchlistBtn');
+            const res = await fetch(watchlistForm.action, {
+                method: 'POST',
+                body: new FormData(watchlistForm),
+                headers: { 'X-Requested-With': 'fetch' }
+            });
+            if (res.ok) {
+                const { watchlist } = await res.json();
+                btn.className = 'watchlist-btn ' + (watchlist ? 'active' : 'inactive');
+                btn.textContent = watchlist ? '★ Watchlist' : '☆ Watchlist';
+                showToast(watchlist ? '★ Added to Watchlist' : '☆ Removed from Watchlist');
+            }
+        });
+
+        function showToast(msg) {
+            let toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            clearTimeout(toast._t);
+            toast._t = setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        document.addEventListener('keydown', e => {
+            if (e.target.tagName === 'INPUT') return;
+            const periods = ['period-1','period-2','period-3','period-4','period-5','period-6','period-0'];
+            const activeIdx = periods.findIndex(id => document.getElementById(id)?.classList.contains('active'));
+            if (e.key === 'ArrowLeft') document.getElementById('prevLink')?.click();
+            if (e.key === 'ArrowRight') document.getElementById('nextLink')?.click();
+            if (e.key === 'w' || e.key === 'W') document.getElementById('watchlistBtn')?.click();
+            if (['1','2','3','4','5','6'].includes(e.key)) document.getElementById('period-' + e.key)?.click();
+            if (e.key === '0') document.getElementById('period-0')?.click();
+            if (e.key === '[' && activeIdx > 0) document.getElementById(periods[activeIdx - 1])?.click();
+            if (e.key === ']' && activeIdx < periods.length - 1) document.getElementById(periods[activeIdx + 1])?.click();
+        });
+
+        const symbol = "{{.Symbol}}";
+        const period = "{{.Period}}";
+        const periodParam = period ? '&period=' + encodeURIComponent(period) : '';
+        let priceChart = null, shortsChart = null, volumeTradesChart = null;
+
+        const crosshairPlugin = {
+            id: 'syncCrosshair',
+            afterEvent(chart, args) {
+                const evt = args.event;
+                if (evt.type === 'mousemove') {
+                    const elements = chart.getElementsAtEventForMode(args.event, 'index', { intersect: false }, false);
+                    if (elements.length) {
+                        const idx = elements[0].index;
+                        const label = chart.data.labels[idx];
+                        [priceChart, shortsChart, volumeTradesChart].filter(c => c && c !== chart).forEach(other => syncTooltip(other, label));
+                    }
+                }
+                if (evt.type === 'mouseout') {
+                    const others = [priceChart, shortsChart, volumeTradesChart].filter(c => c && c !== chart);
+                    others.forEach(other => {
+                        other.tooltip.setActiveElements([], { x: 0, y: 0 });
+                        other.setActiveElements([]);
+                        other.update('none');
+                    });
+                }
+            },
+            afterDraw(chart) {
+                const active = chart.tooltip?.getActiveElements();
+                if (active && active.length) {
+                    const x = active[0].element.x;
+                    const ctx = chart.ctx;
+                    const yAxis = chart.scales.y;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(x, yAxis.top);
+                    ctx.lineTo(x, yAxis.bottom);
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+        };
+
+        function syncTooltip(chart, label) {
+            const idx = chart.data.labels.indexOf(label);
+            if (idx === -1) {
+                chart.tooltip.setActiveElements([], { x: 0, y: 0 });
+                chart.setActiveElements([]);
+                chart.update('none');
+                return;
+            }
+            const activeEls = chart.data.datasets.map((_, di) => ({ datasetIndex: di, index: idx }));
+            chart.tooltip.setActiveElements(activeEls, { x: 0, y: 0 });
+            chart.setActiveElements(activeEls);
+            chart.update('none');
+        }
+
+
+        Chart.register(crosshairPlugin);
+
+        const sharedInteraction = { mode: 'index', intersect: false };
+
+        (async () => {
+            const [priceResp, shortsResp] = await Promise.all([
+                fetch('/api/instrument/chart?symbol=' + encodeURIComponent(symbol) + periodParam),
+                fetch('/api/instrument/shorts?symbol=' + encodeURIComponent(symbol) + periodParam)
+            ]);
+
+            const priceData = priceResp.ok ? await priceResp.json() : { labels: [], values: [], volumePerTrade: [], volume: [], noOfTrades: [], adjClose: [] };
+            const shortsData = shortsResp.ok ? await shortsResp.json() : { labels: [], values: [] };
+
+            const labels = priceData.labels || [];
+
+            if (!labels.length) {
+                document.getElementById('noPriceData').style.display = '';
+                document.getElementById('noShortsData').style.display = '';
+                return;
+            }
+
+            // Calculate 20-day MA for volume
+            const volumeMA = priceData.volumePerTrade.map((volume, i, arr) => {
+                if (i < 19) return null;
+                let sum = 0;
+                for (let j = i - 19; j <= i; j++) sum += arr[j];
+                return sum / 20;
+            });
+
+            // Calculate 20-day MA for closing price
+            const priceMA = priceData.adjClose.map(price => price);
+
+            // Normalize function
+            function normalize(data) {
+                const validData = data.filter(v => v !== null);
+                console.log(data)
+                const mean = validData.reduce((a, b) => a + b, 0) / validData.length;
+                const std = Math.sqrt(validData.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / validData.length);
+                return data.map(val => val === null ? null : (val - mean) / std);
+            }
+
+            // Calculate normalized divergence
+            const normVolumeMA = normalize(volumeMA);
+            const normPriceMA = normalize(priceMA);
+            const divergence = normVolumeMA.map((vol, i) => 
+                vol === null || normPriceMA[i] === null ? null : vol - normPriceMA[i]
+            );
+            console.log(priceData)
+
+            priceChart = new Chart(document.getElementById('priceChart'), {
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        type: 'line',
+                        label: 'Close Price (₹)',
+                        data: priceData.values,
+                        borderColor: '#43A047',
+                        backgroundColor: 'rgba(67,160,71,0.08)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 1,
+                        yAxisID: 'y',
+                        hidden: true
+                    }, {
+                        type: 'line',
+                        label: 'Adj. Close Price (₹)',
+                        data: priceData.adjClose,
+                        borderColor: '#1a73e8',
+                        backgroundColor: 'rgba(26,115,232,0.08)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 1,
+                        yAxisID: 'y'
+                    }, {
+                        type: 'bar',
+                        label: 'Volume/Trade',
+                        data: priceData.volumePerTrade,
+                        borderColor: '#FB8C00',
+                        backgroundColor: 'rgba(251,140,0,0.4)',
+                        yAxisID: 'y1'
+                    }, {
+                        type: 'line',
+                        label: '20-day MA',
+                        data: volumeMA,
+                        borderColor: '#E53935',
+                        borderWidth: 2,
+                        borderDash: [],
+                        pointRadius: 0,
+                        fill: false,
+                        yAxisID: 'y1'
+                    }, {
+                        type: 'line',
+                        label: 'Divergence',
+                        data: divergence,
+                        borderColor: '#9C27B0',
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false,
+                        yAxisID: 'y2'
+                    }, {
+                        type: 'line',
+                        label: 'Zero',
+                        data: labels.map(() => 0),
+                        borderColor: 'rgba(0,0,0,0.3)',
+                        borderWidth: 1,
+                        borderDash: [4, 4],
+                        pointRadius: 0,
+                        fill: false,
+                        yAxisID: 'y2',
+                        tooltip: { enabled: false }
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    interaction: sharedInteraction,
+                    plugins: { legend: { display: true }, tooltip: { mode: 'index', intersect: false } },
+                    scales: {
+                        x: { title: { display: true, text: 'Date' } },
+                        y: { title: { display: true, text: 'Adj. Close Price (₹)' }, position: 'left', beginAtZero: false },
+                        y1: { title: { display: true, text: 'Volume/Trade' }, position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } },
+                        y2: { title: { display: true, text: 'Divergence' }, position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, display: false }
+                    }
+                }
+            });
+
+                        volumeTradesChart = new Chart(document.getElementById('volumeTradesChart'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Volume',
+                        data: priceData.volume,
+                        backgroundColor: 'rgba(0,137,123,0.5)',
+                        yAxisID: 'y'
+                    }, {
+                        label: 'No. of Trades',
+                        data: priceData.noOfTrades,
+                        backgroundColor: 'rgba(244,81,30,0.5)',
+                        yAxisID: 'y1'
+                    }, {
+                        type: 'line',
+                        label: 'Delivery %',
+                        data: priceData.deliveryPercentage,
+                        borderColor: '#7B1FA2',
+                        backgroundColor: 'rgba(123,31,162,0.1)',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: false,
+                        yAxisID: 'y2'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    interaction: sharedInteraction,
+                    barPercentage: 1.0,
+                    categoryPercentage: 1.0,
+                    plugins: { legend: { display: true }, tooltip: { mode: 'index', intersect: false } },
+                    scales: {
+                        x: { title: { display: true, text: 'Date' } },
+                        y: { type: 'logarithmic', title: { display: true, text: 'Volume' }, position: 'left' },
+                        y1: { type: 'logarithmic', title: { display: true, text: 'No. of Trades' }, position: 'right', grid: { drawOnChartArea: false } },
+                        y2: { display: false, min: 0, max: 100 }
+                    }
+                }
+            });
+
+            const shortsMap = {};
+            (shortsData.labels || []).forEach((l, i) => shortsMap[l] = shortsData.values[i]);
+            const alignedShorts = labels.map(l => shortsMap[l] ?? 0);
+
+            shortsChart = new Chart(document.getElementById('shortsChart'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Short Quantity',
+                        data: alignedShorts,
+                        borderColor: '#e53935',
+                        backgroundColor: 'rgba(229,57,53,0.5)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    interaction: sharedInteraction,
+                    plugins: { legend: { display: true }, tooltip: { mode: 'index', intersect: false } },
+                    scales: {
+                        x: { title: { display: true, text: 'Date' } },
+                        y: { title: { display: true, text: 'Short Quantity' }, beginAtZero: true }
+                    }
+                }
+            });
+        })();
+    </script>
+    <div id="toast" class="toast"></div>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ninja Trader - Short Trades</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 0; background: #f5f5f5; }
+        .nav { display: flex; gap: 0; background: #333; padding: 0 1rem; }
+        .nav a { color: #ccc; text-decoration: none; padding: 0.75rem 1.5rem; }
+        .nav a:hover { background: #444; color: #fff; }
+        .nav a.active { color: #fff; border-bottom: 2px solid #4CAF50; }
+        .content { display: flex; padding: 1.5rem; gap: 1.5rem; }
+        .sidebar { width: 280px; flex-shrink: 0; }
+        .sidebar input { width: 100%; padding: 0.4rem; margin-bottom: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .symbol-list { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-height: 70vh; overflow-y: auto; }
+        .date-header { padding: 0.5rem 1rem; background: #eee; font-weight: bold; font-size: 0.85em; color: #555; position: sticky; top: 0; }
+        .symbol-list a { display: flex; justify-content: space-between; padding: 0.4rem 1rem; text-decoration: none; color: #333; border-bottom: 1px solid #f0f0f0; }
+        .symbol-list a:hover { background: #f0f0f0; }
+        .symbol-list a.selected { background: #4CAF50; color: #fff; }
+        .qty { font-size: 0.85em; color: #888; }
+        .symbol-list a.selected .qty { color: #ddd; }
+        .main { flex: 1; }
+        .chart-container { background: #fff; border-radius: 8px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .filters { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        .filters a { padding: 0.4rem 1rem; border-radius: 4px; text-decoration: none; color: #333; background: #fff; border: 1px solid #ccc; font-size: 0.9rem; }
+        .filters a:hover { background: #eee; }
+        .filters a.active { background: #4CAF50; color: #fff; border-color: #4CAF50; }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="/">Instruments</a>
+        <a href="/watchlist">Watchlist</a>
+        <a href="/shorts" class="active">Short Trades</a>
+        <a href="/admin">Admin</a>
+    </nav>
+    <div class="content">
+        <div class="sidebar">
+            <input type="text" id="filter" placeholder="Filter symbols..." oninput="filterSymbols()">
+            <div class="symbol-list" id="symbolList">
+                {{range $group := .Groups}}
+                <div class="date-group">
+                    <div class="date-header" id="date-{{$group.Date}}">{{$group.Date}}</div>
+                    {{range $sym := $group.Symbols}}
+                    <a href="/shorts?symbol={{$sym.Symbol}}&date={{$group.Date}}&days={{$.Days}}{{if $.Year}}&year={{$.Year}}{{end}}" id="sym-{{$sym.Symbol}}-{{$group.Date}}" class="sym-link {{if and (eq $sym.Symbol $.Selected) (eq $group.Date $.SelectedDate)}}selected{{end}}">
+                        <span>{{$sym.Symbol}}</span>
+                        <span class="qty">{{$sym.Quantity}}</span>
+                    </a>
+                    {{end}}
+                </div>
+                {{end}}
+            </div>
+        </div>
+        <div class="main">
+            <h1>Short Trades{{if .Selected}} — {{.Selected}}{{end}}</h1>
+            <div class="filters">
+                {{if .Years}}
+                <a href="/shorts?{{if .Selected}}symbol={{.Selected}}&date={{.SelectedDate}}&{{end}}days={{.Days}}" class="{{if eq .Year ""}}active{{end}}">All Years</a>
+                {{range .Years}}
+                <a href="/shorts?{{if $.Selected}}symbol={{$.Selected}}&date={{$.SelectedDate}}&{{end}}year={{.}}" class="{{if eq (printf "%d" .) $.Year}}active{{end}}">{{.}}</a>
+                {{end}}
+                <span style="border-left:1px solid #ccc;margin:0 0.25rem"></span>
+                {{end}}
+                <a href="/shorts?days=7{{if .Selected}}&symbol={{.Selected}}&date={{.SelectedDate}}{{end}}{{if .Year}}&year={{.Year}}{{end}}" class="{{if eq .Days "7"}}active{{end}}">7 Days</a>
+                <a href="/shorts?days=14{{if .Selected}}&symbol={{.Selected}}&date={{.SelectedDate}}{{end}}{{if .Year}}&year={{.Year}}{{end}}" class="{{if eq .Days "14"}}active{{end}}">14 Days</a>
+                <a href="/shorts?days=30{{if .Selected}}&symbol={{.Selected}}&date={{.SelectedDate}}{{end}}{{if .Year}}&year={{.Year}}{{end}}" class="{{if eq .Days "30"}}active{{end}}">30 Days</a>
+                <a href="/shorts?days=90{{if .Selected}}&symbol={{.Selected}}&date={{.SelectedDate}}{{end}}{{if .Year}}&year={{.Year}}{{end}}" class="{{if eq .Days "90"}}active{{end}}">90 Days</a>
+                <a href="/shorts?days=all{{if .Selected}}&symbol={{.Selected}}&date={{.SelectedDate}}{{end}}{{if .Year}}&year={{.Year}}{{end}}" class="{{if or (eq .Days "all") (eq .Days "")}}active{{end}}">All Days</a>
+            </div>
+            <div class="chart-container" style="margin-bottom:1.5rem">
+                <h3>Total Short Quantity by Date</h3>
+                <canvas id="totalChart"></canvas>
+            </div>
+            {{if .Selected}}
+            <div class="chart-container">
+                <h3>{{.Selected}} Short Quantity by Date</h3>
+                <canvas id="chart"></canvas>
+            </div>
+            {{end}}
+        </div>
+    </div>
+    <script>
+        function filterSymbols() {
+            const q = document.getElementById('filter').value.toUpperCase();
+            document.querySelectorAll('.date-group').forEach(group => {
+                let visible = 0;
+                group.querySelectorAll('.sym-link').forEach(a => {
+                    const match = a.querySelector('span').textContent.includes(q);
+                    a.style.display = match ? '' : 'none';
+                    if (match) visible++;
+                });
+                group.style.display = visible ? '' : 'none';
+            });
+        }
+
+        const selected = "{{.Selected}}";
+        const selectedDate = "{{.SelectedDate}}";
+        const days = "{{.Days}}";
+        const year = "{{.Year}}";
+        const daysParam = days ? '&days=' + days : '';
+        const yearParam = year ? '&year=' + year : '';
+
+        if (selected && selectedDate) {
+            const el = document.getElementById('sym-' + selected + '-' + selectedDate);
+            if (el) el.scrollIntoView({ block: 'center' });
+        }
+
+        (async () => {
+            const resp = await fetch('/api/shorts/total?days=' + encodeURIComponent(days) + yearParam);
+            if (!resp.ok) return;
+            const data = await resp.json();
+            new Chart(document.getElementById('totalChart'), {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Total Short Quantity',
+                        data: data.values,
+                        borderColor: '#2196F3',
+                        backgroundColor: 'rgba(33,150,243,0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Unique Symbols',
+                        data: data.symbolCounts,
+                        borderColor: '#FF9800',
+                        backgroundColor: 'rgba(255,152,0,0.1)',
+                        fill: false,
+                        tension: 0.3,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { title: { display: true, text: 'Date' } },
+                        y: { title: { display: true, text: 'Total Quantity' }, beginAtZero: true, position: 'left' },
+                        y1: { title: { display: true, text: 'Unique Symbols' }, beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+        })();
+
+        if (selected) {
+            (async () => {
+                const resp = await fetch('/api/shorts/chart?symbol=' + encodeURIComponent(selected) + daysParam + yearParam);
+                if (!resp.ok) return;
+                const data = await resp.json();
+                new Chart(document.getElementById('chart'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: selected + ' Short Quantity',
+                            data: data.values,
+                            backgroundColor: 'rgba(76,175,80,0.7)',
+                            borderColor: '#4CAF50',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: { title: { display: true, text: 'Date' } },
+                            y: { title: { display: true, text: 'Quantity' }, beginAtZero: true }
+                        }
+                    }
+                });
+            })();
+        }
+    </script>
+</body>
+</html>
