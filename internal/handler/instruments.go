@@ -30,26 +30,21 @@ func formatIndianNumber(n float64) string {
 }
 
 type InstrumentHandler struct {
-	Repo    repo.InstrumentRepo
-	Service *service.InstrumentService
-	Tmpl    *template.Template
+	Repo      repo.InstrumentRepo
+	TradeRepo repo.TradeRepo
+	Service   *service.InstrumentService
+	Tmpl      *template.Template
 }
 
 func (h *InstrumentHandler) List(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
-	var instruments interface{}
-	var err error
-	if query != "" {
-		instruments, err = h.Repo.SearchInstruments(query)
-	} else {
-		instruments, err = h.Repo.GetAllInstruments()
-	}
+	instruments, err := h.Repo.GetAllInstrumentsWithHolding(query)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	h.Tmpl.ExecuteTemplate(w, "instruments.html", struct {
-		Instruments interface{}
+		Instruments []repo.InstrumentWithHolding
 		Query       string
 	}{instruments, query})
 }
@@ -84,30 +79,54 @@ func (h *InstrumentHandler) Detail(w http.ResponseWriter, r *http.Request) {
 	marketCap := ""
 	basicIndustry := ""
 	index := ""
+	holding := 0
+	needsAdjustment := false
+	var deliveryPct float32
+	var updatedAt time.Time
+	tag := ""
 	if inst, err := h.Repo.GetInstrumentBySymbol(symbol); err == nil {
 		fullName = inst.InstrumentFullName
 		watchlist = inst.Watchlist
 		marketCap = formatIndianNumber(inst.MarketCap)
 		basicIndustry = inst.BasicIndustry
 		index = inst.Index
+		updatedAt = inst.UpdatedAt
+		needsAdjustment = inst.NeedsAdjsutment
+		tag = inst.Tag
+		if trade, err := h.TradeRepo.GetHoldingByInstrumentID(inst.ID); err == nil {
+			holding = trade
+		}
+		if dp, err := h.Repo.GetLatestDeliveryPercentage(symbol); err == nil {
+			deliveryPct = dp
+		}
 	}
 	tmplPeriod := period
 	if period == "" {
 		tmplPeriod = "max"
 	}
+	lastUpdated := ""
+	if !updatedAt.IsZero() {
+		lastUpdated = updatedAt.Format("02/01/06 15:04:05")
+	}
 	h.Tmpl.ExecuteTemplate(w, "instrument_detail.html", struct {
-		Symbol        string
-		FullName      string
-		MarketCap     string
-		BasicIndustry string
-		Index         string
-		Msg           string
-		Period        string
-		PrevSymbol    string
-		NextSymbol    string
-		Watchlist     bool
-		WatchlistOnly bool
-	}{symbol, fullName, marketCap, basicIndustry, index, r.URL.Query().Get("msg"), tmplPeriod, prev, next, watchlist, watchlistOnly})
+		Symbol             string
+		FullName           string
+		MarketCap          string
+		BasicIndustry      string
+		Index              string
+		Msg                string
+		Period             string
+		PrevSymbol         string
+		NextSymbol         string
+		Watchlist          bool
+		WatchlistOnly      bool
+		Holding            int
+		LastUpdated        string
+		NeedsAdjustment    bool
+		DeliveryPercentage float32
+		Tag                string
+		TagOptions         []string
+	}{symbol, fullName, marketCap, basicIndustry, index, r.URL.Query().Get("msg"), tmplPeriod, prev, next, watchlist, watchlistOnly, holding, lastUpdated, needsAdjustment, deliveryPct, tag, []string{"oversold", "touch", "scoop", "overbought", "repel", "horizontal"}})
 }
 
 func (h *InstrumentHandler) ToggleWatchlist(w http.ResponseWriter, r *http.Request) {
@@ -142,19 +161,13 @@ func (h *InstrumentHandler) ToggleWatchlist(w http.ResponseWriter, r *http.Reque
 
 func (h *InstrumentHandler) WatchlistPage(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
-	var instruments []models.Instrument
-	var err error
-	if query != "" {
-		instruments, err = h.Repo.SearchWatchlistInstruments(query)
-	} else {
-		instruments, err = h.Repo.GetWatchlistInstruments()
-	}
+	instruments, err := h.Repo.GetWatchlistInstrumentsWithHolding(query)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	h.Tmpl.ExecuteTemplate(w, "watchlist.html", struct {
-		Instruments []models.Instrument
+		Instruments []repo.InstrumentWithHolding
 		Query       string
 	}{instruments, query})
 }
@@ -269,7 +282,7 @@ func (h *InstrumentHandler) ProcessDailyData(w http.ResponseWriter, r *http.Requ
 	http.Redirect(w, r, "/instrument?symbol="+url.QueryEscape(symbol)+"&msg=daily_sync_started", http.StatusSeeOther)
 }
 
-func (h *InstrumentHandler) SyncAdjClosePriceAndEvents(w http.ResponseWriter, r *http.Request) {
+func (h *InstrumentHandler) SyncAdjClosePrice(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -281,10 +294,28 @@ func (h *InstrumentHandler) SyncAdjClosePriceAndEvents(w http.ResponseWriter, r 
 	}
 	go func() {
 		log.Printf("SyncAdjClosePriceAndEvents started for %s", symbol)
-		h.Service.SyncAdjClosePriceAndEvents(symbol, nil, nil)
+		h.Service.SyncAdjClosePrice(symbol, nil, nil)
 		log.Printf("SyncAdjClosePriceAndEvents completed for %s", symbol)
 	}()
 	http.Redirect(w, r, "/instrument?symbol="+url.QueryEscape(symbol)+"&msg=adj_sync_started", http.StatusSeeOther)
+}
+
+func (h *InstrumentHandler) SyncSplitAndDividend(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	symbol := r.FormValue("symbol")
+	if symbol == "" {
+		http.Error(w, "symbol required", http.StatusBadRequest)
+		return
+	}
+	go func() {
+		log.Printf("SyncSplitAndDividend started for %s", symbol)
+		h.Service.SyncSplitAndDividend(symbol, nil, nil)
+		log.Printf("SyncSplitAndDividend completed for %s", symbol)
+	}()
+	http.Redirect(w, r, "/instrument?symbol="+url.QueryEscape(symbol)+"&msg=split_dividend_sync_started", http.StatusSeeOther)
 }
 
 func (h *InstrumentHandler) ShortsChartData(w http.ResponseWriter, r *http.Request) {
@@ -312,4 +343,80 @@ func (h *InstrumentHandler) ShortsChartData(w http.ResponseWriter, r *http.Reque
 		"labels": labels,
 		"values": values,
 	})
+}
+
+var validTags = map[string]bool{
+	"":           true,
+	"oversold":   true,
+	"touch":      true,
+	"scoop":      true,
+	"overbought": true,
+	"repel":      true,
+	"horizontal": true,
+}
+
+func (h *InstrumentHandler) SetTag(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	symbol := r.FormValue("symbol")
+	if symbol == "" {
+		http.Error(w, "symbol required", http.StatusBadRequest)
+		return
+	}
+	tag := r.FormValue("tag")
+	if !validTags[tag] {
+		http.Error(w, "invalid tag value", http.StatusBadRequest)
+		return
+	}
+	if err := h.Repo.UpdateTag(symbol, tag); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if r.Header.Get("X-Requested-With") == "fetch" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"tag": tag})
+		return
+	}
+	http.Redirect(w, r, "/instrument?symbol="+url.QueryEscape(symbol), http.StatusSeeOther)
+}
+
+func (h *InstrumentHandler) TagHistoryAPI(w http.ResponseWriter, r *http.Request) {
+	symbol := r.URL.Query().Get("symbol")
+	if symbol == "" {
+		http.Error(w, "symbol required", http.StatusBadRequest)
+		return
+	}
+	history, err := h.Repo.GetTagHistory(symbol)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	type entry struct {
+		Date           string   `json:"date"`
+		PreviousTag    string   `json:"previous_tag"`
+		NextTag        string   `json:"next_tag"`
+		PriceChangePct *float64 `json:"price_change_pct"`
+	}
+	entries := make([]entry, len(history))
+	var prevPrice float64
+	for i, th := range history {
+		e := entry{
+			Date:        th.UpdatedOn.Format("02 Jan 2006"),
+			PreviousTag: th.PreviousTag,
+			NextTag:     th.NextTag,
+		}
+		curPrice, err := h.Repo.GetClosestAdjustedPrice(symbol, th.UpdatedOn)
+		if err == nil && curPrice > 0 {
+			if i > 0 && prevPrice > 0 {
+				pct := (curPrice - prevPrice) / prevPrice * 100
+				e.PriceChangePct = &pct
+			}
+			prevPrice = curPrice
+		}
+		entries[i] = e
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(entries)
 }

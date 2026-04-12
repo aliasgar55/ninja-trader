@@ -25,12 +25,7 @@
     </style>
 </head>
 <body>
-    <nav class="nav">
-        <a href="/">Instruments</a>
-        <a href="/watchlist" class="active">Watchlist</a>
-        <a href="/shorts">Short Trades</a>
-        <a href="/admin">Admin</a>
-    </nav>
+    {{template "nav" "watchlist"}}
     <div class="content">
         <h1>Watchlist</h1>
         <form class="search-box" method="GET" action="/watchlist">
@@ -44,9 +39,13 @@
                 <tr>
                     <th>Symbol</th>
                     <th>Full Name</th>
-                    <th>Exchange</th>
                     <th>Market Cap</th>
+                    <th>Industry</th>
+                    <th>Index</th>
                     <th>Price Band</th>
+                    <th>Delivery %</th>
+                    <th>Tag</th>
+                    <th>Holding</th>
                 </tr>
             </thead>
             <tbody>
@@ -54,9 +53,13 @@
                 <tr>
                     <td><a class="symbol-link" href="/instrument?symbol={{.TradingSymbol}}&watchlist=1">{{.TradingSymbol}}</a></td>
                     <td>{{.InstrumentFullName}}</td>
-                    <td>{{.Exchange}}</td>
                     <td>{{printf "%.0f" .MarketCap}}</td>
+                    <td>{{.BasicIndustry}}</td>
+                    <td>{{.Index}}</td>
                     <td>{{.PriceBand}}</td>
+                    <td>{{if gt .DeliveryPercentage 0.0}}{{printf "%.2f" .DeliveryPercentage}}%{{end}}</td>
+                    <td>{{.Tag}}</td>
+                    <td>{{if gt .Holding 0}}{{.Holding}}{{end}}</td>
                 </tr>
                 {{end}}
             </tbody>

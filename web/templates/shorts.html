@@ -30,12 +30,7 @@
     </style>
 </head>
 <body>
-    <nav class="nav">
-        <a href="/">Instruments</a>
-        <a href="/watchlist">Watchlist</a>
-        <a href="/shorts" class="active">Short Trades</a>
-        <a href="/admin">Admin</a>
-    </nav>
+    {{template "nav" "shorts"}}
     <div class="content">
         <div class="sidebar">
             <input type="text" id="filter" placeholder="Filter symbols..." oninput="filterSymbols()">

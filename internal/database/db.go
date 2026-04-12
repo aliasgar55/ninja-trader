@@ -42,4 +42,3 @@ func NewDatabase(dsn string) (*gorm.DB, error) {
 	}
 	return db, nil
 }
-

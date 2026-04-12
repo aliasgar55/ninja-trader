@@ -35,7 +35,7 @@ type EquityResponse struct {
 // 	BuyPrice2         float64 `json:"buyPrice2"`
 // 	BuyQuantity2      int64   `json:"buyQuantity2"`
 // 	BuyPrice3         float64 `json:"buyPrice3"`
-// 	BuyQuantity3      int64   `json:"buyQuantity3"`
+// 	BuyQuantity4      int64   `json:"buyQuantity3"`
 // 	BuyPrice4         float64 `json:"buyPrice4"`
 // 	BuyQuantity4      int64   `json:"buyQuantity4"`
 // 	BuyPrice5         float64 `json:"buyPrice5"`
@@ -81,7 +81,7 @@ type MetaData struct {
 	// SpoChange       float64 `json:"spoChange"`
 	// SpoPchange      float64 `json:"spoPchange"`
 	// SymbolStatus    string  `json:"symbolStatus"`
-	// AdjPrice        float64 `json:"adjPrice"`
+	AdjPrice float64 `json:"adjPrice"`
 	// Iep             float64 `json:"iep"`
 	// Ieq             float64 `json:"ieq"`
 }
@@ -133,7 +133,7 @@ type SecInfo struct {
 	// PdSymbolPe               string      `json:"pdSymbolPe"`
 	// IsSuspended              string      `json:"isSuspended"`
 	BasicIndustry string `json:"basicIndustry"`
-	Index                    string      `json:"index"`
+	Index         string `json:"index"`
 	// DeliveryQuantity         string      `json:"deliveryQuantity"`
 	// DeliveryTotradedQuantity string      `json:"deliveryTotradedQuantity"`
 	// SecurityVar              string      `json:"securityvar"`
@@ -180,6 +180,9 @@ func (equity *EquityRoot) GetSecInfo() *SecInfo {
 	return &equity.EquityResponse[0].SecInfo
 }
 
+func (equity *EquityRoot) GetNeedsAdjustment() bool {
+	return equity.EquityResponse[0].MetaData.AdjPrice > 0
+}
 
 type NseLastUpdateTime time.Time
 

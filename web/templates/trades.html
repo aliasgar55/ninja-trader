@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ninja Trader - Trades</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 0; background: #f5f5f5; }
+        .nav { display: flex; gap: 0; background: #333; padding: 0 1rem; }
+        .nav a { color: #ccc; text-decoration: none; padding: 0.75rem 1.5rem; }
+        .nav a:hover { background: #444; color: #fff; }
+        .nav a.active { color: #fff; border-bottom: 2px solid #4CAF50; }
+        .content { padding: 2rem; }
+        table { border-collapse: collapse; width: 100%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th, td { padding: 0.5rem 1rem; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #333; color: #fff; position: sticky; top: 0; }
+        tr:hover { background: #f0f0f0; }
+        tbody tr { cursor: pointer; }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal { background: #fff; border-radius: 8px; padding: 1.5rem; min-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        .modal h2 { margin: 0 0 1rem; font-size: 1.1rem; }
+        .modal table { box-shadow: none; }
+        .modal-close { float: right; cursor: pointer; background: none; border: none; font-size: 1.2rem; color: #555; }
+        a.symbol-link { color: #1a73e8; text-decoration: none; font-weight: 500; }
+        a.symbol-link:hover { text-decoration: underline; }
+        .empty { color: #888; padding: 2rem; text-align: center; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; }
+        .badge-buy { background: #e8f5e9; color: #2e7d32; }
+        .badge-sell { background: #ffebee; color: #c62828; }
+        .pnl-pos { color: #2e7d32; font-weight: 600; }
+        .pnl-neg { color: #c62828; font-weight: 600; }
+    </style>
+</head>
+<body>
+    {{template "nav" "trades"}}
+    <div class="content">
+        <h1>Paper Trades</h1>
+        {{if .Trades}}
+        <input type="text" id="searchInput" placeholder="Search by symbol..." style="padding:0.5rem 0.75rem;border:1px solid #ccc;border-radius:4px;font-size:0.95rem;width:250px;margin-bottom:1rem">
+        <table>
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Tag</th>
+                    <th>Quantity</th>
+                    <th>Avg Price (₹)</th>
+                    <th>Current Price (₹)</th>
+                    <th>Invested (₹)</th>
+                    <th>Current Value (₹)</th>
+                    <th>P&L (₹)</th>
+                    <th>P&L %</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Trades}}
+                <tr onclick="showLogs('{{.TradingSymbol}}')">
+                    <td><a class="symbol-link" href="/instrument?symbol={{.TradingSymbol}}">{{.TradingSymbol}}</a></td>
+                    <td>{{.Tag}}</td>
+                    <td>{{.Quantity}}</td>
+                    <td>{{printf "%.2f" .AveragePrice}}</td>
+                    <td>{{printf "%.2f" .CurrentPrice}}</td>
+                    <td>{{printf "%.2f" .InvestedAmount}}</td>
+                    <td>{{printf "%.2f" .CurrentValue}}</td>
+                    <td class="{{if ge .PnL 0.0}}pnl-pos{{else}}pnl-neg{{end}}">{{printf "%.2f" .PnL}}</td>
+                    <td class="{{if ge .PnLPct 0.0}}pnl-pos{{else}}pnl-neg{{end}}">{{printf "%.2f" .PnLPct}}%</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{else}}
+        <div class="empty">No paper trades yet. Use the Buy / Sell buttons on any instrument page to place a trade.</div>
+        {{end}}
+    </div>
+
+    <div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <button class="modal-close" onclick="closeModal()">✕</button>
+            <h2 id="modal-title">Trade Logs</h2>
+            <table>
+                <thead><tr><th>Date</th><th>Type</th><th>Qty</th><th>Price (₹)</th><th>Amount (₹)</th></tr></thead>
+                <tbody id="modal-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function showLogs(symbol) {
+            fetch('/api/trade/logs?symbol=' + symbol)
+                .then(r => r.json())
+                .then(logs => {
+                    document.getElementById('modal-title').textContent = symbol + ' — Trade Logs';
+                    document.getElementById('modal-body').innerHTML = (logs || []).map(l =>
+                        `<tr>
+                            <td>${new Date(l.Date).toLocaleDateString()}</td>
+                            <td><span class="badge ${l.TradeType===0?'badge-buy':'badge-sell'}">${l.TradeType===0?'BUY':'SELL'}</span></td>
+                            <td>${l.Quantity}</td>
+                            <td>${l.AvgPrice.toFixed(2)}</td>
+                            <td>${l.Amount.toFixed(2)}</td>
+                        </tr>`
+                    ).join('');
+                    document.getElementById('modal').classList.add('open');
+                });
+        }
+        function closeModal() { document.getElementById('modal').classList.remove('open'); }
+        document.getElementById('searchInput')?.addEventListener('input', function() {
+            const q = this.value.toLowerCase();
+            document.querySelectorAll('tbody tr').forEach(row => {
+                const symbol = row.querySelector('td')?.textContent.toLowerCase() || '';
+                row.style.display = symbol.includes(q) ? '' : 'none';
+            });
+        });
+    </script>
+</body>
+</html>

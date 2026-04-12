@@ -26,20 +26,38 @@ type Instrument struct {
 	IsDailySyncFailed  bool
 	DailySyncError     string
 	LastDailySyncDate  time.Time
+	WatchListDate      time.Time
+	NeedsAdjsutment    bool
+	Tag                string
+}
+
+type TagHistory struct {
+	gorm.Model
+	InstrumentID  uint `gorm:"not null;index"`
+	TradingSymbol string
+	PreviousTag   string
+	NextTag       string
+	UpdatedOn     time.Time
 }
 
 type EventType int
+
 const (
-    Dividen EventType = iota
-    Split
+	Dividend EventType = iota
+	Split
 )
 
 type Event struct {
 	gorm.Model
-	EventType EventType
-	Dividen   float32
-	Numerator uint8
-	Denominator uint8
+	InstrumentID  uint `gorm:"not null;index"`
+	Instrument    Instrument
+	TradingSymbol string
+	EventDate     time.Time
+	EventType     EventType
+	Dividend      float32
+	Numerator     uint8
+	Denominator   uint8
+	Processed     bool
 }
 
 type Historicaldata struct {
@@ -60,6 +78,7 @@ type Historicaldata struct {
 	YearLow                         float64
 	VolumePerTrade                  int64
 	DeliveryPercentage              float32
+	AdjustementFactor               float64
 }
 
 type Shorts struct {

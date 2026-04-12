@@ -167,7 +167,7 @@ func (s *InstrumentService) SyncTradeHistory(symbol string, from time.Time, to t
 	}
 }
 
-func (s *InstrumentService) SyncAdjClosePriceAndEvents(symbol string, minDate, maxDate *time.Time) error {
+func (s *InstrumentService) SyncAdjClosePrice(symbol string, minDate, maxDate *time.Time) error {
 
 	if minDate == nil || maxDate == nil {
 		dateRange, err := s.InstruRepo.GetHistoricalDataDateRange(symbol)
@@ -216,6 +216,44 @@ func (s *InstrumentService) SyncAdjClosePriceAndEvents(symbol string, minDate, m
 
 	}
 	fillMissingWg.Wait()
+	return nil
+
+}
+
+func (s *InstrumentService) SyncSplitAndDividend(symbol string, minDate, maxDate *time.Time) error {
+
+	instrument, err := s.InstruRepo.GetInstrumentBySymbol(symbol)
+	if err != nil {
+		log.Printf("Error getting instrument by symbol %s\n", symbol)
+	}
+	if minDate == nil || maxDate == nil {
+		dateRange, err := s.InstruRepo.GetHistoricalDataDateRange(symbol)
+		if err != nil {
+			log.Printf("Error getting range for symbol %s\n", symbol)
+			return err
+		}
+		fmt.Println(dateRange)
+		minDate = &dateRange.MinDate
+		maxDate = &dateRange.MaxDate
+	}
+	events, err := yahoo.GetHistoricalEvents(symbol, *minDate, *maxDate)
+	if err != nil {
+		log.Printf("Error getting yahoo finance data, symbol: %s, startDate: %v, endDate: %v, error1: %v\n", symbol, minDate, maxDate, err)
+		return err
+	}
+	var dbList []models.Event
+	for _, dividend := range events.Dividends {
+		dbList = append(dbList, *dividend.MapToDb(instrument))
+	}
+	for _, split := range events.Splits {
+		dbList = append(dbList, *split.MapToDb(instrument))
+	}
+
+	err = s.InstruRepo.BulkInsertEvents(dbList)
+	if err != nil {
+		fmt.Printf("Error inserting events to the database error: %v\n", err)
+		return err
+	}
 	return nil
 
 }
@@ -327,6 +365,10 @@ func (s *InstrumentService) ProcessDailyData(symbol string) error {
 		instrument.PriceBand = nseResp.GetPriceBand()
 		instrument.BasicIndustry = nseResp.GetSecInfo().BasicIndustry
 		instrument.Index = nseResp.GetSecInfo().Index
+		instrument.NeedsAdjsutment = nseResp.GetNeedsAdjustment()
+		if instrument.NeedsAdjsutment {
+			fmt.Println("%s needs adjusment")
+		}
 		s.InstruRepo.UpdateInstrument(instrument)
 		log.Printf("ProcessDailyData [%s] instrument metadata updated, marketCap: %.2f, active: %v\n", symbol, instrument.MarketCap, instrument.Active)
 		historicalTrade, err := s.InstruRepo.GetHistoricalDataBySymbolAndDate(symbol, nseResp.GetLastUpdateTime().Truncate(24*time.Hour))
@@ -351,4 +393,10 @@ func (s *InstrumentService) ProcessDailyData(symbol string) error {
 	}
 	log.Printf("ProcessDailyData completed for %s\n", symbol)
 	return nil
+}
+
+func (s *InstrumentService) AdjustPriceByEvents(symbol string) error {
+	// events, err := s.InstruRepo.GetEventsBySymbol(symbol); err
+	return nil
+
 }

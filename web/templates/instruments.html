@@ -27,12 +27,7 @@
     </style>
 </head>
 <body>
-    <nav class="nav">
-        <a href="/" class="active">Instruments</a>
-        <a href="/watchlist">Watchlist</a>
-        <a href="/shorts">Short Trades</a>
-        <a href="/admin">Admin</a>
-    </nav>
+    {{template "nav" "instruments"}}
     <div class="content">
         <h1>Instruments</h1>
         <form class="search-box" method="GET" action="/">
@@ -44,34 +39,32 @@
             <thead>
                 <tr>
                     <th>Symbol</th>
-                    <th>Exchange</th>
-                    <th>Token</th>
                     <th>Market Cap</th>
+                    <th>Industry</th>
+                    <th>Index</th>
                     <th>Price Band</th>
+                    <th>Delivery %</th>
+                    <th>Tag</th>
+                    <th>Holding</th>
+                    <th>Adj.</th>
                     <th>Active</th>
-                    <th>IsNav</th>
-                    <th>NSE API</th>
                 </tr>
             </thead>
             <tbody>
                 {{range .Instruments}}
                 <tr>
                     <td><a class="symbol-link" href="/instrument?symbol={{.TradingSymbol}}">{{.TradingSymbol}}</a></td>
-                    <td>{{.Exchange}}</td>
-                    <td>{{.InstrumentToken}}</td>
                     <td>{{printf "%.0f" .MarketCap}}</td>
+                    <td>{{.BasicIndustry}}</td>
+                    <td>{{.Index}}</td>
                     <td>{{.PriceBand}}</td>
+                    <td>{{if gt .DeliveryPercentage 0.0}}{{printf "%.2f" .DeliveryPercentage}}%{{end}}</td>
+                    <td>{{.Tag}}</td>
+                    <td>{{if gt .Holding 0}}{{.Holding}}{{end}}</td>
+                    <td>{{if .NeedsAdjsutment}}<span style="display:inline-block;width:8px;height:8px;background:#e53935;border-radius:50%"></span>{{end}}</td>
                     <td>
                         {{if .Active}}<span class="badge active-badge">Yes</span>
                         {{else}}<span class="badge inactive-badge">No</span>{{end}}
-                    </td>
-                    <td>
-                        {{if .IsNav}}<span class="badge active-badge">Yes</span>
-                        {{else}}<span class="badge inactive-badge">No</span>{{end}}
-                    </td>
-                    <td>
-                        {{if .NseApiSuccess}}<span class="badge active-badge">OK</span>
-                        {{else}}<span class="badge inactive-badge" title="{{.NseApiError}}">Failed</span>{{end}}
                     </td>
                 </tr>
                 {{end}}

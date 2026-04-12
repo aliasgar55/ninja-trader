@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ninja Trader - GTT Orders</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 0; background: #f5f5f5; }
+        .nav { display: flex; gap: 0; background: #333; padding: 0 1rem; }
+        .nav a { color: #ccc; text-decoration: none; padding: 0.75rem 1.5rem; }
+        .nav a:hover { background: #444; color: #fff; }
+        .nav a.active { color: #fff; border-bottom: 2px solid #4CAF50; }
+        .content { padding: 2rem; }
+        .header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+        .header-row h1 { margin: 0; }
+        .sync-btn { background: #1a73e8; color: #fff; border: none; border-radius: 4px; padding: 0.5rem 1.2rem; cursor: pointer; font-size: 0.95rem; font-weight: 500; }
+        .sync-btn:hover { background: #1557b0; }
+        .sync-btn:disabled { background: #999; cursor: not-allowed; }
+        table { border-collapse: collapse; width: 100%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th, td { padding: 0.5rem 1rem; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #333; color: #fff; position: sticky; top: 0; }
+        tr:hover { background: #f0f0f0; }
+        .empty { color: #888; padding: 2rem; text-align: center; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .error { color: #c62828; padding: 1rem; background: #ffebee; border-radius: 4px; margin-bottom: 1rem; }
+        .badge { padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+        .badge-active { background: #e8f5e9; color: #2e7d32; }
+        .badge-triggered { background: #fff3e0; color: #e65100; }
+        .badge-cancelled { background: #fce4ec; color: #c62828; }
+        .badge-deleted { background: #efebe9; color: #795548; }
+        .badge-single { background: #e3f2fd; color: #1565c0; }
+        .badge-oco { background: #f3e5f5; color: #7b1fa2; }
+        .delete-btn { background: #e53935; color: #fff; border: none; border-radius: 4px; padding: 0.3rem 0.8rem; cursor: pointer; font-size: 0.85rem; }
+        .delete-btn:hover { background: #c62828; }
+        .toast { position: fixed; top: 4rem; right: 1.5rem; background: #333; color: #fff; padding: 0.8rem 1.8rem; border-radius: 6px; font-size: 1.05rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+    {{template "nav" "gtt"}}
+    <div class="content">
+        <div class="header-row">
+            <h1>GTT Orders</h1>
+            <button class="sync-btn" onclick="syncGTTs(this)">Sync from Kite</button>
+        </div>
+        {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+        {{if .GTTs}}
+        <table>
+            <thead>
+                <tr>
+                    <th>Trigger ID</th>
+                    <th>Symbol</th>
+                    <th>Type</th>
+                    <th>Side</th>
+                    <th>Status</th>
+                    <th>Trigger</th>
+                    <th>Limit</th>
+                    <th>Qty</th>
+                    <th>Last Price</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .GTTs}}
+                <tr id="gtt-row-{{.TriggerID}}">
+                    <td>{{.TriggerID}}</td>
+                    <td><a href="/instrument?symbol={{.TradingSymbol}}" style="color:#1a73e8;text-decoration:none;font-weight:500">{{.TradingSymbol}}</a></td>
+                    <td>
+                        {{if eq .TriggerType "single"}}<span class="badge badge-single">Single</span>
+                        {{else}}<span class="badge badge-oco">OCO</span>{{end}}
+                    </td>
+                    <td>{{.TransactionType}}</td>
+                    <td>
+                        {{if eq .Status "active"}}<span class="badge badge-active">Active</span>
+                        {{else if eq .Status "triggered"}}<span class="badge badge-triggered">Triggered</span>
+                        {{else if eq .Status "cancelled"}}<span class="badge badge-cancelled">Cancelled</span>
+                        {{else if eq .Status "deleted"}}<span class="badge badge-deleted">Deleted</span>
+                        {{else}}<span class="badge">{{.Status}}</span>{{end}}
+                    </td>
+                    <td>
+                        {{printf "%.2f" .TriggerPrice}}
+                        {{if eq .TriggerType "oco"}} / {{printf "%.2f" .UpperTriggerPrice}}{{end}}
+                    </td>
+                    <td>
+                        {{printf "%.2f" .LimitPrice}}
+                        {{if eq .TriggerType "oco"}} / {{printf "%.2f" .UpperLimitPrice}}{{end}}
+                    </td>
+                    <td>
+                        {{printf "%.0f" .Quantity}}
+                        {{if eq .TriggerType "oco"}} / {{printf "%.0f" .UpperQuantity}}{{end}}
+                    </td>
+                    <td>{{printf "%.2f" .LastPrice}}</td>
+                    <td style="font-size:0.85rem">{{.CreatedAt.Format "02/01/06 15:04"}}</td>
+                    <td>
+                        {{if eq .Status "active"}}
+                        <button class="delete-btn" onclick="deleteGTT({{.TriggerID}})">Delete</button>
+                        {{end}}
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{else}}
+        {{if not .Error}}<div class="empty">No GTT orders found. Click "Sync from Kite" to pull your orders.</div>{{end}}
+        {{end}}
+    </div>
+    <div id="toast" class="toast"></div>
+    <script>
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            clearTimeout(toast._t);
+            toast._t = setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        function deleteGTT(triggerID) {
+            if (!confirm('Delete GTT order #' + triggerID + '?')) return;
+            fetch('/gtt/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'trigger_id=' + triggerID
+            }).then(res => {
+                if (res.ok) {
+                    document.getElementById('gtt-row-' + triggerID)?.remove();
+                    showToast('GTT #' + triggerID + ' deleted');
+                } else {
+                    res.text().then(t => showToast('Error: ' + t));
+                }
+            }).catch(() => showToast('Delete request failed'));
+        }
+
+        function syncGTTs(btn) {
+            btn.disabled = true;
+            btn.textContent = 'Syncing...';
+            fetch('/gtt/sync', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    showToast('Synced ' + data.synced + ' GTT orders');
+                    setTimeout(() => location.reload(), 500);
+                })
+                .catch(() => showToast('Sync failed'))
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.textContent = 'Sync from Kite';
+                });
+        }
+    </script>
+</body>
+</html>

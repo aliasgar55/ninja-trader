@@ -17,11 +17,39 @@ func New(apiKey string) *Client {
 	}
 }
 
+func (c *Client) SetAccessToken(token string) {
+	c.client.SetAccessToken(token)
+}
+
 func (c *Client) GetAllInstruments() (*[]tradingClient.Instrument, error) {
 	instruments, err := c.client.GetInstruments()
 	dst := make([]tradingClient.Instrument, len(instruments))
-	for i, v := range(instruments) {
+	for i, v := range instruments {
 		dst[i] = tradingClient.Instrument(v)
 	}
 	return &dst, err
+}
+
+func (c *Client) PlaceGTT(params kiteconnect.GTTParams) (kiteconnect.GTTResponse, error) {
+	return c.client.PlaceGTT(params)
+}
+
+func (c *Client) GetGTTs() (kiteconnect.GTTs, error) {
+	return c.client.GetGTTs()
+}
+
+func (c *Client) GetGTT(triggerID int) (kiteconnect.GTT, error) {
+	return c.client.GetGTT(triggerID)
+}
+
+func (c *Client) DeleteGTT(triggerID int) (kiteconnect.GTTResponse, error) {
+	return c.client.DeleteGTT(triggerID)
+}
+
+func (c *Client) GetLoginURL() string {
+	return c.client.GetLoginURL()
+}
+
+func (c *Client) GenerateSession(requestToken string, apiSecret string) (kiteconnect.UserSession, error) {
+	return c.client.GenerateSession(requestToken, apiSecret)
 }

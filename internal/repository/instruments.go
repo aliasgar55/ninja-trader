@@ -18,7 +18,7 @@ func (repo *InstrumentRepo) CreateInstrument(instrument *models.Instrument) erro
 			Columns: []clause.Column{
 				{Name: "instrument_token"},
 			},
-			DoUpdates: clause.AssignmentColumns([]string{"market_cap", "last_price", "nse_api_success", "is_nav", "instrument_full_name"}),
+			DoUpdates: clause.AssignmentColumns([]string{"market_cap", "nse_api_success", "is_nav", "instrument_full_name"}),
 		},
 	).Create(instrument).Error
 }
@@ -31,6 +31,39 @@ func (repo *InstrumentRepo) GetAllInstruments() ([]models.Instrument, error) {
 		Find(&instruments).
 		Error
 	return instruments, err
+}
+
+type InstrumentWithHolding struct {
+	models.Instrument
+	Holding            int
+	DeliveryPercentage float32
+}
+
+func (repo *InstrumentRepo) withHoldingQuery() *gorm.DB {
+	return repo.Db.Model(&models.Instrument{}).
+		Select("instruments.*, COALESCE(pt.quantity, 0) AS holding, COALESCE(hd.delivery_percentage, 0) AS delivery_percentage").
+		Joins("LEFT JOIN paper_trades pt ON pt.instrument_id = instruments.id").
+		Joins("LEFT JOIN historicaldata hd ON hd.symbol = instruments.trading_symbol AND hd.date = (SELECT MAX(h2.date) FROM historicaldata h2 WHERE h2.symbol = instruments.trading_symbol)")
+}
+
+func (repo *InstrumentRepo) GetAllInstrumentsWithHolding(query string) ([]InstrumentWithHolding, error) {
+	var results []InstrumentWithHolding
+	q := repo.withHoldingQuery().Where("instruments.active = true")
+	if query != "" {
+		q = q.Where("instruments.trading_symbol ILIKE ?", "%"+query+"%")
+	}
+	err := q.Order("instruments.market_cap DESC").Scan(&results).Error
+	return results, err
+}
+
+func (repo *InstrumentRepo) GetWatchlistInstrumentsWithHolding(query string) ([]InstrumentWithHolding, error) {
+	var results []InstrumentWithHolding
+	q := repo.withHoldingQuery().Where("instruments.active = true AND instruments.watchlist = true AND instruments.is_nav = false")
+	if query != "" {
+		q = q.Where("instruments.trading_symbol ILIKE ?", "%"+query+"%")
+	}
+	err := q.Order("instruments.market_cap DESC").Scan(&results).Error
+	return results, err
 }
 
 func (repo *InstrumentRepo) CreateShorts(shorts []models.Shorts) error {
@@ -145,6 +178,20 @@ func (repo *InstrumentRepo) BulkInsertTradeHistory(trades []models.Historicaldat
 	}).CreateInBatches(&trades, 100).Error
 }
 
+func (repo *InstrumentRepo) BulkInsertEvents(events []models.Event) error {
+	return repo.Db.Clauses(clause.OnConflict{
+		DoNothing: true,
+	}).CreateInBatches(&events, 100).Error
+}
+
+// func (repo *InstrumentRepo
+
+func (repo *InstrumentRepo) GetEventsBySymbol(symbol string) ([]models.Event, error) {
+	var events []models.Event
+	err := repo.Db.Where("trading_symbol = ?", symbol).Order("event_date ASC").Find(&events).Error
+	return events, err
+}
+
 func (repo *InstrumentRepo) GetPreviousTrade(symbol string, date time.Time) (*models.Historicaldata, error) {
 	var data models.Historicaldata
 	err := repo.Db.Where("symbol = ? AND date < ? AND adjusted_close_price IS NOT NULL AND adjusted_close_price != 0", symbol, date).Order("date DESC").First(&data).Error
@@ -179,6 +226,15 @@ func (repo *InstrumentRepo) GetHistoricalDataBySymbolSince(symbol string, since 
 	var data []models.Historicaldata
 	err := repo.Db.Where("symbol = ? AND date >= ?", symbol, since).Order("date ASC").Find(&data).Error
 	return data, err
+}
+
+func (repo *InstrumentRepo) GetLatestDeliveryPercentage(symbol string) (float32, error) {
+	var data models.Historicaldata
+	err := repo.Db.Where("symbol = ?", symbol).Order("date DESC").First(&data).Error
+	if err != nil {
+		return 0, err
+	}
+	return data.DeliveryPercentage, nil
 }
 
 type HistoricalDateRange struct {
@@ -297,4 +353,43 @@ func (repo *InstrumentRepo) GetFailedNseApi() (*[]models.Instrument, error) {
 		return nil, err
 	}
 	return &instruments, nil
+}
+
+func (repo *InstrumentRepo) UpdateTag(symbol string, tag string) error {
+	instrument, err := repo.GetInstrumentBySymbol(symbol)
+	if err != nil {
+		return err
+	}
+	if instrument.Tag == tag {
+		return nil
+	}
+	return repo.Db.Transaction(func(tx *gorm.DB) error {
+		history := models.TagHistory{
+			InstrumentID:  instrument.ID,
+			TradingSymbol: instrument.TradingSymbol,
+			PreviousTag:   instrument.Tag,
+			NextTag:       tag,
+			UpdatedOn:     time.Now(),
+		}
+		if err := tx.Create(&history).Error; err != nil {
+			return err
+		}
+		return tx.Model(instrument).Update("tag", tag).Error
+	})
+}
+
+func (repo *InstrumentRepo) GetTagHistory(symbol string) ([]models.TagHistory, error) {
+	var history []models.TagHistory
+	err := repo.Db.Where("trading_symbol = ?", symbol).Order("updated_on ASC").Find(&history).Error
+	return history, err
+}
+
+func (repo *InstrumentRepo) GetClosestAdjustedPrice(symbol string, date time.Time) (float64, error) {
+	var data models.Historicaldata
+	err := repo.Db.Where("symbol = ? AND date <= ? AND adjusted_close_price IS NOT NULL AND adjusted_close_price != 0", symbol, date).
+		Order("date DESC").First(&data).Error
+	if err != nil {
+		return 0, err
+	}
+	return data.AdjustedClosePrice, nil
 }

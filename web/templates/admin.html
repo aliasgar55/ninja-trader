@@ -20,12 +20,7 @@
     </style>
 </head>
 <body>
-    <nav class="nav">
-        <a href="/">Instruments</a>
-        <a href="/watchlist">Watchlist</a>
-        <a href="/shorts">Short Trades</a>
-        <a href="/admin" class="active">Admin</a>
-    </nav>
+    {{template "nav" "admin"}}
     <div class="content">
         <h1>Admin</h1>
         {{if eq .Msg "sync_instruments_started"}}

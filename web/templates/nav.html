@@ -1,0 +1,22 @@
+{{define "nav"}}
+<nav class="nav">
+    <a href="/"{{if eq . "instruments"}} class="active"{{end}}>Instruments</a>
+    <a href="/watchlist"{{if eq . "watchlist"}} class="active"{{end}}>Watchlist</a>
+    <a href="/trades"{{if eq . "trades"}} class="active"{{end}}>Trades</a>
+    <a href="/shorts"{{if eq . "shorts"}} class="active"{{end}}>Short Trades</a>
+    <a href="/gtt"{{if eq . "gtt"}} class="active"{{end}}>GTT Orders</a>
+    <a href="/admin"{{if eq . "admin"}} class="active"{{end}}>Admin</a>
+    <span id="kite-status" style="margin-left:auto;padding:0.75rem 1rem;font-size:0.85rem;"></span>
+</nav>
+<script>
+fetch('/api/auth/status').then(r=>r.json()).then(d=>{
+    const el=document.getElementById('kite-status');
+    if(d.logged_in){
+        el.innerHTML='<span style="color:#4CAF50;">&#9679;</span> '+d.user_id;
+        el.style.color='#4CAF50';
+    }else{
+        el.innerHTML='<a href="/auth/login" style="color:#ff9800;text-decoration:none;">Login to Kite</a>';
+    }
+});
+</script>
+{{end}}

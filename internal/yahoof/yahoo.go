@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	models "ninja-trader/internal/model"
 	"time"
 )
 
@@ -15,7 +16,7 @@ type Root struct {
 }
 
 type Chart struct {
-	Result []Result  `json:"result"`
+	Result []Result    `json:"result"`
 	Error  *YahooError `json:"error"`
 }
 
@@ -30,21 +31,20 @@ type Result struct {
 	Indicators Indicators `json:"indicators"`
 }
 
-
 type Events struct {
 	Dividends map[string]Dividend `json:"dividends"`
-	Splits map[string]Split `json:"splits"`
+	Splits    map[string]Split    `json:"splits"`
 }
 
 type Split struct {
 	Date        int64   `json:"date"`
-	Numerator   float64 `json:"numerator"`
-	Denominator float64 `json:"denominator"`
+	Numerator   float32 `json:"numerator"`
+	Denominator float32 `json:"denominator"`
 	SplitRatio  string  `json:"splitRatio"`
 }
 
 type Dividend struct {
-	Amount float64 `json:"amount"`
+	Amount float32 `json:"amount"`
 	Date   int64   `json:"date"`
 }
 
@@ -65,10 +65,32 @@ type AdjClose struct {
 	AdjClose []float64 `json:"adjclose"`
 }
 
+func (e *Dividend) MapToDb(instrument *models.Instrument) *models.Event {
+	return &models.Event{
+		InstrumentID:  instrument.ID,
+		TradingSymbol: instrument.TradingSymbol,
+		Instrument:    *instrument,
+		EventDate:     time.Unix(e.Date, 0),
+		EventType:     models.Dividend,
+		Dividend:      float32(e.Amount),
+	}
+}
+
+func (e *Split) MapToDb(instrument *models.Instrument) *models.Event {
+	return &models.Event{
+		InstrumentID:  instrument.ID,
+		TradingSymbol: instrument.TradingSymbol,
+		Instrument:    *instrument,
+		EventDate:     time.Unix(e.Date, 0),
+		EventType:     models.Split,
+		Numerator:     uint8(e.Numerator),
+		Denominator:   uint8(e.Denominator),
+	}
+}
 
 func GetHistoricalData(symbol string, startDate, endDate time.Time) (*Root, error) {
 
-	url := fmt.Sprintf("https://query1.finance.yahoo.com/v8/finance/chart/%s.NS?events=%s&interval=1d&period1=%d&period2=%d&symbol=%s.NS",  url.QueryEscape(symbol), url.QueryEscape("div|split"), startDate.Unix(), endDate.Unix(), url.QueryEscape(symbol))
+	url := fmt.Sprintf("https://query1.finance.yahoo.com/v8/finance/chart/%s.NS?events=%s&interval=1d&period1=%d&period2=%d&symbol=%s.NS", url.QueryEscape(symbol), url.QueryEscape("div|split"), startDate.Unix(), endDate.Unix(), url.QueryEscape(symbol))
 	method := "GET"
 
 	client := &http.Client{}
@@ -95,4 +117,38 @@ func GetHistoricalData(symbol string, startDate, endDate time.Time) (*Root, erro
 		return nil, err
 	}
 	return &result, nil
+}
+
+func GetHistoricalEvents(symbol string, startDate, endDate time.Time) (*Events, error) {
+
+	url := fmt.Sprintf("https://query1.finance.yahoo.com/v8/finance/chart/%s.NS?events=%s&interval=1d&period1=%d&period2=%d&symbol=%s.NS", url.QueryEscape(symbol), url.QueryEscape("div|split"), startDate.Unix(), endDate.Unix(), url.QueryEscape(symbol))
+	method := "GET"
+
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, nil)
+	if err != nil {
+		log.Fatalf("Error creating  request from yahoo %s\n", err)
+	}
+	req.Header.Add("Accept", "*/*")
+	req.Header.Add("User-Agent", "PostmanRuntime/7.51.1")
+
+	reqDump, err := httputil.DumpRequestOut(req, true)
+	fmt.Println(string(reqDump))
+
+	res, err := client.Do(req)
+	if err != nil {
+		log.Printf("Error fetching data from yahoo, %s\n", err)
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	var result Root
+	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+		log.Printf("Error decoding json response %s, %s \n", err, url)
+		return nil, err
+	}
+	if result.Chart.Error != nil {
+		log.Printf("Error fetching events from yahoo  %s, %s \n", err, url)
+	}
+	return &result.Chart.Result[0].Events, nil
 }

@@ -20,13 +20,32 @@
         .instrument-header { background: #fff; border-radius: 8px; padding: 1.25rem 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 1rem; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
         .instrument-header h1 { margin: 0; font-size: 1.8rem; letter-spacing: 0.5px; }
         .instrument-header .fullname { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 0.2rem; }
-        .instrument-header a { padding: 0.4rem 1rem; border-radius: 4px; text-decoration: none; color: #333; background: #f5f5f5; border: 1px solid #ccc; font-size: 0.9rem; }
-        .instrument-header a:hover { background: #eee; }
+        .instrument-header a { padding: 0 1rem; border-radius: 6px; text-decoration: none; color: #555; background: #f5f5f5; border: 1px solid #ddd; font-size: 0.9rem; height: 36px; display: inline-flex; align-items: center; }
+        .instrument-header a:hover { background: #ebebeb; }
         .instrument-meta { display: flex; gap: 2rem; margin-top: 0.75rem; flex-wrap: wrap; }
         .instrument-meta .meta-item { display: flex; flex-direction: column; }
         .instrument-meta .meta-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.6px; color: #aaa; }
         .instrument-meta .meta-value { font-size: 1.25rem; font-weight: 600; color: #333; margin-top: 0.1rem; }
-        .watchlist-btn { padding: 0.4rem 1rem; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; font-size: 0.9rem; }
+        .watchlist-btn { padding: 0; border-radius: 6px; border: 1px solid #ccc; cursor: pointer; font-size: 0.9rem; width: 120px; height: 36px; white-space: nowrap; text-align: center; }
+        .watchlist-btn.active { background: #4CAF50; color: #fff; border-color: #4CAF50; }
+        .watchlist-btn.active:hover { background: #43A047; }
+        .watchlist-btn.inactive { background: #fff; color: #333; }
+        .watchlist-btn.inactive:hover { background: #f5f5f5; }
+        .buy-btn { padding: 0; border-radius: 6px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 600; background: #4CAF50; color: #fff; width: 120px; height: 36px; text-align: center; }
+        .buy-btn:hover { background: #43A047; }
+        .sell-btn { padding: 0; border-radius: 6px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 600; background: #e53935; color: #fff; width: 120px; height: 36px; text-align: center; }
+        .sell-btn:hover { background: #c62828; }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal { background: #fff; border-radius: 8px; padding: 1.5rem; min-width: 280px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+        .modal h2 { margin: 0 0 1rem; font-size: 1.1rem; }
+        .modal label { font-size: 0.85rem; color: #555; display: block; margin-bottom: 0.2rem; margin-top: 0.75rem; }
+        .modal input { width: 100%; padding: 0.4rem 0.6rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95rem; box-sizing: border-box; }
+        .modal-actions { display: flex; gap: 0.5rem; margin-top: 1.25rem; justify-content: flex-end; }
+        .modal-actions button { padding: 0.4rem 1rem; border-radius: 4px; border: none; cursor: pointer; font-size: 0.9rem; }
+        .modal-cancel { background: #f5f5f5; color: #333; border: 1px solid #ccc !important; }
+        .modal-confirm-buy { background: #4CAF50; color: #fff; }
+        .modal-confirm-sell { background: #e53935; color: #fff; }
         .watchlist-btn.active { background: #4CAF50; color: #fff; border-color: #4CAF50; }
         .watchlist-btn.inactive { background: #fff; color: #333; }
         .toast { position: fixed; top: 4rem; right: 1.5rem; background: #333; color: #fff; padding: 0.8rem 1.8rem; border-radius: 6px; font-size: 1.05rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
@@ -40,20 +59,55 @@
         .admin-toggle { background: none; border: none; color: #888; font-size: 0.85rem; cursor: pointer; padding: 0; }
         .admin-toggle:hover { color: #333; }
         .admin-forms { display: none; margin-top: 0.75rem; padding: 1rem; background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; display: flex; flex-direction: column; gap: 0.75rem; }
+        .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; }
+        .drawer-overlay.open { display: block; }
+        .drawer { position: fixed; top: 0; right: -420px; width: 400px; height: 100%; background: #fff; box-shadow: -4px 0 16px rgba(0,0,0,0.15); z-index: 1001; transition: right 0.25s ease; overflow-y: auto; }
+        .drawer.open { right: 0; }
+        .drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid #eee; }
+        .drawer-header h2 { margin: 0; font-size: 1.1rem; }
+        .drawer-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #888; padding: 0; }
+        .drawer-close:hover { color: #333; }
+        .drawer-body { padding: 1.25rem; }
+        .drawer-section { margin-bottom: 1.5rem; }
+        .drawer-section h3 { font-size: 0.95rem; margin: 0 0 0.75rem; color: #333; }
+        .gtt-form label { font-size: 0.85rem; color: #555; display: block; margin-bottom: 0.2rem; margin-top: 0.6rem; }
+        .gtt-form input, .gtt-form select { width: 100%; padding: 0.4rem 0.6rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95rem; box-sizing: border-box; }
+        .gtt-form .form-row { display: flex; gap: 0.5rem; }
+        .gtt-form .form-row > div { flex: 1; }
+        .gtt-submit { margin-top: 1rem; width: 100%; padding: 0.5rem; background: #4CAF50; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.95rem; font-weight: 600; }
+        .gtt-submit:hover { background: #43A047; }
+        .gtt-btn { padding: 0; border-radius: 6px; border: 1px solid #FF9800; cursor: pointer; font-size: 0.9rem; font-weight: 600; background: #fff; color: #FF9800; width: 120px; height: 36px; text-align: center; }
+        .gtt-btn:hover { background: #FFF3E0; }
+        .oco-fields { display: none; }
+        .oco-fields.show { display: block; }
+        .existing-gtt { border: 1px solid #eee; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem; font-size: 0.85rem; }
+        .existing-gtt .gtt-info { display: flex; justify-content: space-between; align-items: center; }
+        .existing-gtt .gtt-detail { color: #666; margin-top: 0.3rem; }
         .sync-form { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
         .sync-form label { font-size: 0.9rem; color: #555; }
         .sync-form input[type="date"] { padding: 0.4rem 0.6rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
         .sync-form button { padding: 0.4rem 1rem; background: #4CAF50; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
         .sync-form button:hover { background: #45a049; }
+        .tag-select { font-size: 1rem; font-weight: 600; padding: 0.2rem 0.4rem; border: 1px solid #ddd; border-radius: 4px; background: #fff; color: #333; cursor: pointer; text-transform: capitalize; }
+        .tag-dropdown { position: relative; display: inline-block; }
+        .tag-dropdown-btn { font-size: 1rem; font-weight: 600; padding: 0.2rem 0.6rem; border: 1px solid #ddd; border-radius: 4px; background: #fff; color: #333; cursor: pointer; text-transform: capitalize; min-width: 80px; text-align: left; }
+        .tag-dropdown-btn:hover { border-color: #aaa; }
+        .tag-dropdown-menu { display: none; position: absolute; top: 100%; left: 0; background: #fff; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 50; min-width: 120px; margin-top: 2px; }
+        .tag-dropdown-menu.open { display: block; }
+        .tag-dropdown-item { padding: 0.4rem 0.75rem; cursor: pointer; text-transform: capitalize; font-size: 0.95rem; }
+        .tag-dropdown-item:hover, .tag-dropdown-item.highlighted { background: #e8f0fe; }
+        .tag-dropdown-item.active { font-weight: 600; color: #1a73e8; }
+        .tag-history-btn { padding: 0; border-radius: 6px; border: 1px solid #1a73e8; cursor: pointer; font-size: 0.9rem; font-weight: 600; background: #fff; color: #1a73e8; width: 120px; height: 36px; text-align: center; }
+        .tag-history-btn:hover { background: #e8f0fe; }
+        .tag-history-entry { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid #f0f0f0; font-size: 1.05rem; }
+        .tag-history-entry:last-child { border-bottom: none; }
+        .tag-history-date { color: #888; font-size: 0.95rem; min-width: 90px; }
+        .tag-history-change { color: #333; font-size: 1.05rem; }
+
     </style>
 </head>
 <body>
-    <nav class="nav">
-        <a href="/" class="active">Instruments</a>
-        <a href="/watchlist">Watchlist</a>
-        <a href="/shorts">Short Trades</a>
-        <a href="/admin">Admin</a>
-    </nav>
+    {{template "nav" "instruments"}}
     <div class="content">
         <a class="back" href="/">← Back to Instruments</a>
         <div class="instrument-header">
@@ -66,25 +120,50 @@
                     {{if .MarketCap}}<div class="meta-item"><span class="meta-label">Market Cap</span><span class="meta-value">₹{{.MarketCap}}</span></div>{{end}}
                     {{if .BasicIndustry}}<div class="meta-item"><span class="meta-label">Industry</span><span class="meta-value">{{.BasicIndustry}}</span></div>{{end}}
                     {{if .Index}}<div class="meta-item"><span class="meta-label">Index</span><span class="meta-value">{{.Index}}</span></div>{{end}}
+                    {{if ne .Holding 0}}<div class="meta-item"><span class="meta-label">Holding</span><span class="meta-value">{{.Holding}}</span></div>{{end}}
+                    {{if gt .DeliveryPercentage 0.0}}<div class="meta-item"><span class="meta-label">Delivery %</span><span class="meta-value">{{printf "%.2f" .DeliveryPercentage}}%</span></div>{{end}}
+                    <div class="meta-item">
+                        <span class="meta-label">Tag</span>
+                        <div class="tag-dropdown" id="tagDropdown">
+                            <button type="button" class="tag-dropdown-btn" id="tagBtn" onclick="toggleTagMenu()">{{if .Tag}}{{.Tag}}{{else}}—{{end}}</button>
+                            <div class="tag-dropdown-menu" id="tagMenu">
+                                <div class="tag-dropdown-item{{if not .Tag}} active{{end}}" data-value="" onclick="selectTag('')">—</div>
+                                {{range .TagOptions}}<div class="tag-dropdown-item{{if eq $.Tag .}} active{{end}}" data-value="{{.}}" onclick="selectTag('{{.}}')">{{.}}</div>
+                                {{end}}
+                            </div>
+                        </div>
+                    </div>
                 </div>
+                {{if .LastUpdated}}<div style="font-size:0.7rem;color:#bbb;margin-top:0.5rem">{{if .NeedsAdjustment}}<span style="display:inline-block;width:8px;height:8px;background:#e53935;border-radius:50%;margin-right:4px;vertical-align:middle" title="Needs adjustment"></span>{{end}}Last updated: {{.LastUpdated}}</div>{{end}}
             </div>
-            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
-                {{if .PrevSymbol}}<a id="prevLink" href="/instrument?symbol={{.PrevSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}">← {{.PrevSymbol}}</a>{{end}}
-                {{if .NextSymbol}}<a id="nextLink" href="/instrument?symbol={{.NextSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}">{{.NextSymbol}} →</a>{{end}}
-                <form method="POST" action="/instrument/watchlist" style="margin:0">
-                    <input type="hidden" name="symbol" value="{{.Symbol}}">
-                    <input type="hidden" name="watchlist_only" value="{{if .WatchlistOnly}}1{{end}}">
-                    <input type="hidden" name="period" value="{{.Period}}">
-                    <button id="watchlistBtn" type="submit" class="watchlist-btn {{if .Watchlist}}active{{else}}inactive{{end}}">
-                        {{if .Watchlist}}★ Watchlist{{else}}☆ Watchlist{{end}}
-                    </button>
-                </form>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.6rem">
+                <div style="display:flex;align-items:center;gap:0.6rem">
+                    {{if .PrevSymbol}}<a id="prevLink" href="/instrument?symbol={{.PrevSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}">← {{.PrevSymbol}}</a>{{end}}
+                    {{if .NextSymbol}}<a id="nextLink" href="/instrument?symbol={{.NextSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}">{{.NextSymbol}} →</a>{{end}}
+                </div>
+                <div style="display:flex;align-items:center;gap:0.6rem">
+                    <form method="POST" action="/instrument/watchlist" style="margin:0">
+                        <input type="hidden" name="symbol" value="{{.Symbol}}">
+                        <input type="hidden" name="watchlist_only" value="{{if .WatchlistOnly}}1{{end}}">
+                        <input type="hidden" name="period" value="{{.Period}}">
+                        <button id="watchlistBtn" type="submit" class="watchlist-btn {{if .Watchlist}}active{{else}}inactive{{end}}">
+                            {{if .Watchlist}}★ Watchlist{{else}}☆ Watchlist{{end}}
+                        </button>
+                    </form>
+                    <button class="buy-btn" onclick="openOrderModal('BUY')">Buy</button>
+                    <button class="sell-btn" onclick="openOrderModal('SELL')">Sell</button>
+                </div>
+                <div style="display:flex;gap:0.5rem">
+                    <button class="tag-history-btn" onclick="openTagHistoryDrawer()">Tag History</button>
+                    <button class="gtt-btn" onclick="openGTTDrawer()">GTT Order</button>
+                </div>
             </div>
         </div>
 
         {{if eq .Msg "sync_started"}}<div class="msg">Trade history sync started in background.</div>{{end}}
         {{if eq .Msg "adj_sync_started"}}<div class="msg">Adjusted close price sync started in background.</div>{{end}}
         {{if eq .Msg "daily_sync_started"}}<div class="msg">Daily data sync started in background.</div>{{end}}
+        {{if eq .Msg "split_dividend_sync_started"}}<div class="msg">Split and dividend sync started in background.</div>{{end}}
 
         <div class="admin-section">
             <button class="admin-toggle" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'flex':'none'">⚙ Admin</button>
@@ -92,6 +171,10 @@
                 <form class="sync-form" method="POST" action="/instrument/sync-adj-close">
                     <input type="hidden" name="symbol" value="{{.Symbol}}">
                     <button type="submit">Sync Adj. Close &amp; Events</button>
+                </form>
+                <form class="sync-form" method="POST" action="/instrument/sync-split-dividend">
+                    <input type="hidden" name="symbol" value="{{.Symbol}}">
+                    <button type="submit">Sync Split &amp; Dividend</button>
                 </form>
                 <form class="sync-form" method="POST" action="/instrument/process-daily">
                     <input type="hidden" name="symbol" value="{{.Symbol}}">
@@ -164,10 +247,84 @@
             toast._t = setTimeout(() => toast.classList.remove('show'), 2000);
         }
 
+        function setTag(tag) {
+            const fd = new FormData();
+            fd.append('symbol', symbol);
+            fd.append('tag', tag);
+            fetch('/instrument/tag', {method:'POST', body:fd, headers:{'X-Requested-With':'fetch'}})
+                .then(r => { if(r.ok) showToast(tag ? 'Tag: '+tag : 'Tag cleared'); });
+        }
+
+        function toggleTagMenu() {
+            const menu = document.getElementById('tagMenu');
+            if (menu.classList.contains('open')) { closeTagMenu(); } else { openTagMenu(); }
+        }
+        function openTagMenu() {
+            const menu = document.getElementById('tagMenu');
+            menu.classList.add('open');
+            const items = menu.querySelectorAll('.tag-dropdown-item');
+            let activeIdx = Array.from(items).findIndex(i => i.classList.contains('active'));
+            items.forEach(i => i.classList.remove('highlighted'));
+            if (activeIdx >= 0) items[activeIdx].classList.add('highlighted');
+        }
+        function closeTagMenu() {
+            const menu = document.getElementById('tagMenu');
+            menu.classList.remove('open');
+            menu.querySelectorAll('.tag-dropdown-item').forEach(i => i.classList.remove('highlighted'));
+        }
+        function selectTag(val) {
+            const btn = document.getElementById('tagBtn');
+            btn.textContent = val || '—';
+            document.getElementById('tagMenu').querySelectorAll('.tag-dropdown-item').forEach(i => {
+                i.classList.toggle('active', i.dataset.value === val);
+            });
+            closeTagMenu();
+            setTag(val);
+        }
+        document.addEventListener('click', e => {
+            if (!document.getElementById('tagDropdown').contains(e.target)) closeTagMenu();
+        });
+
         document.addEventListener('keydown', e => {
             if (e.target.tagName === 'INPUT') return;
+            const menu = document.getElementById('tagMenu');
+            const tagOpen = menu.classList.contains('open');
+
+            if (tagOpen) {
+                const items = Array.from(menu.querySelectorAll('.tag-dropdown-item'));
+                let hlIdx = items.findIndex(i => i.classList.contains('highlighted'));
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    items.forEach(i => i.classList.remove('highlighted'));
+                    hlIdx = (hlIdx + 1) % items.length;
+                    items[hlIdx].classList.add('highlighted');
+                    items[hlIdx].scrollIntoView({block:'nearest'});
+                    return;
+                }
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    items.forEach(i => i.classList.remove('highlighted'));
+                    hlIdx = (hlIdx - 1 + items.length) % items.length;
+                    items[hlIdx].classList.add('highlighted');
+                    items[hlIdx].scrollIntoView({block:'nearest'});
+                    return;
+                }
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (hlIdx >= 0) selectTag(items[hlIdx].dataset.value);
+                    return;
+                }
+                if (e.key === 'Escape' || e.key === 't') {
+                    e.preventDefault();
+                    closeTagMenu();
+                    return;
+                }
+                return;
+            }
+
             const periods = ['period-1','period-2','period-3','period-4','period-5','period-6','period-0'];
             const activeIdx = periods.findIndex(id => document.getElementById(id)?.classList.contains('active'));
+            if (e.key === 't' || e.key === 'T') { e.preventDefault(); openTagMenu(); return; }
             if (e.key === 'ArrowLeft') document.getElementById('prevLink')?.click();
             if (e.key === 'ArrowRight') document.getElementById('nextLink')?.click();
             if (e.key === 'w' || e.key === 'W') document.getElementById('watchlistBtn')?.click();
@@ -248,6 +405,11 @@
 
             const priceData = priceResp.ok ? await priceResp.json() : { labels: [], values: [], volumePerTrade: [], volume: [], noOfTrades: [], adjClose: [] };
             const shortsData = shortsResp.ok ? await shortsResp.json() : { labels: [], values: [] };
+
+            // Set GTT last price from adj close data
+            if (priceData.adjClose && priceData.adjClose.length > 0) {
+                document.getElementById('gttLastPrice').value = priceData.adjClose[priceData.adjClose.length - 1];
+            }
 
             const labels = priceData.labels || [];
 
@@ -362,7 +524,7 @@
                 }
             });
 
-                        volumeTradesChart = new Chart(document.getElementById('volumeTradesChart'), {
+            volumeTradesChart = new Chart(document.getElementById('volumeTradesChart'), {
                 type: 'bar',
                 data: {
                     labels: labels,
@@ -432,5 +594,284 @@
         })();
     </script>
     <div id="toast" class="toast"></div>
+
+    <div id="orderModal" class="modal-overlay">
+        <div class="modal">
+            <h2 id="modalTitle"></h2>
+            <label>Quantity</label>
+            <input id="orderQty" type="number" min="1" value="1">
+            <label>Price (₹)</label>
+            <input id="orderPrice" type="number" min="0" step="0.01" placeholder="Leave blank for market price">
+            <label>Note</label>
+            <input id="orderNote" type="text" placeholder="Optional">
+            <div class="modal-actions">
+                <button class="modal-cancel" onclick="closeOrderModal()">Cancel</button>
+                <button id="modalConfirm" onclick="submitOrder()"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tag History Drawer -->
+    <div id="tagHistoryOverlay" class="drawer-overlay" onclick="closeTagHistoryDrawer()"></div>
+    <div id="tagHistoryDrawer" class="drawer">
+        <div class="drawer-header">
+            <h2>Tag History — {{.Symbol}}</h2>
+            <button class="drawer-close" onclick="closeTagHistoryDrawer()">&times;</button>
+        </div>
+        <div class="drawer-body">
+            <div id="tagHistoryContent"><span style="color:#999;font-size:0.85rem">Loading...</span></div>
+        </div>
+    </div>
+
+    <!-- GTT Drawer -->
+    <div id="gttOverlay" class="drawer-overlay" onclick="closeGTTDrawer()"></div>
+    <div id="gttDrawer" class="drawer">
+        <div class="drawer-header">
+            <h2>GTT Order — {{.Symbol}}</h2>
+            <button class="drawer-close" onclick="closeGTTDrawer()">&times;</button>
+        </div>
+        <div class="drawer-body">
+            <div class="drawer-section">
+                <h3>Create GTT</h3>
+                <form class="gtt-form" id="gttForm" onsubmit="submitGTT(event)">
+                    <input type="hidden" name="symbol" value="{{.Symbol}}">
+                    <input type="hidden" name="exchange" value="NSE">
+                    <input type="hidden" name="last_price" id="gttLastPrice" value="0">
+                    <div class="form-row">
+                        <div>
+                            <label>Trigger Type</label>
+                            <select name="trigger_type" id="gttTriggerType" onchange="toggleOCOFields()">
+                                <option value="single">Single</option>
+                                <option value="oco">OCO (Two-leg)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Transaction</label>
+                            <select name="transaction_type">
+                                <option value="BUY">Buy</option>
+                                <option value="SELL">Sell</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <label>Trigger Price</label>
+                    <input type="number" name="trigger_price" step="0.05" required placeholder="Trigger price">
+
+                    <div class="form-row">
+                        <div>
+                            <label>Limit Price</label>
+                            <input type="number" name="limit_price" step="0.05" required placeholder="Limit price">
+                        </div>
+                        <div>
+                            <label>Quantity</label>
+                            <input type="number" name="quantity" min="1" required placeholder="Qty">
+                        </div>
+                    </div>
+
+                    <div id="ocoFields" class="oco-fields">
+                        <hr style="margin:0.8rem 0;border:none;border-top:1px solid #eee">
+                        <h3 style="font-size:0.9rem;color:#7b1fa2;margin:0 0 0.5rem">Upper Leg (Target)</h3>
+                        <label>Upper Trigger Price</label>
+                        <input type="number" name="upper_trigger_price" step="0.05" placeholder="Upper trigger">
+                        <div class="form-row">
+                            <div>
+                                <label>Upper Limit Price</label>
+                                <input type="number" name="upper_limit_price" step="0.05" placeholder="Upper limit">
+                            </div>
+                            <div>
+                                <label>Upper Quantity</label>
+                                <input type="number" name="upper_quantity" min="1" placeholder="Qty">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="gtt-submit">Place GTT</button>
+                </form>
+            </div>
+
+            <div class="drawer-section">
+                <h3>Existing GTTs</h3>
+                <div id="existingGTTs"><span style="color:#999;font-size:0.85rem">Loading...</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentAction = null;
+        function openOrderModal(action) {
+            currentAction = action;
+            const isBuy = action === 'BUY';
+            document.getElementById('modalTitle').textContent = (isBuy ? '🟢 Buy ' : '🔴 Sell ') + symbol;
+            const confirm = document.getElementById('modalConfirm');
+            confirm.className = isBuy ? 'modal-confirm-buy' : 'modal-confirm-sell';
+            confirm.textContent = isBuy ? 'Buy' : 'Sell';
+            document.getElementById('orderModal').classList.add('open');
+            document.getElementById('orderQty').focus();
+        }
+        function closeOrderModal() {
+            document.getElementById('orderModal').classList.remove('open');
+        }
+        function submitOrder() {
+            const qty = parseInt(document.getElementById('orderQty').value);
+            if (!qty || qty < 1) { alert('Enter a valid quantity'); return; }
+            const body = new URLSearchParams({ symbol, quantity: qty, action: currentAction });
+            fetch('/trade', { method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
+                .then(res => {
+                    if (res.ok) {
+                        showToast((currentAction === 'BUY' ? '🟢 Bought ' : '🔴 Sold ') + qty + ' × ' + symbol);
+                    } else {
+                        res.text().then(t => showToast('❌ ' + t));
+                    }
+                })
+                .catch(() => showToast('❌ Trade request failed'));
+            closeOrderModal();
+        }
+        document.getElementById('orderModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeOrderModal(); });
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                closeOrderModal();
+                closeGTTDrawer();
+                closeTagHistoryDrawer();
+
+            }
+        });
+
+        // Tag History Drawer
+        function openTagHistoryDrawer() {
+            document.getElementById('tagHistoryOverlay').classList.add('open');
+            document.getElementById('tagHistoryDrawer').classList.add('open');
+            loadTagHistory();
+        }
+
+        function closeTagHistoryDrawer() {
+            document.getElementById('tagHistoryOverlay').classList.remove('open');
+            document.getElementById('tagHistoryDrawer').classList.remove('open');
+        }
+
+        function loadTagHistory() {
+            const container = document.getElementById('tagHistoryContent');
+            container.innerHTML = '<span style="color:#999;font-size:0.85rem">Loading...</span>';
+            fetch('/api/instrument/tag-history?symbol=' + encodeURIComponent(symbol))
+                .then(res => res.json())
+                .then(data => {
+                    if (!data || data.length === 0) {
+                        container.innerHTML = '<span style="color:#999;font-size:0.85rem">No tag history for this symbol.</span>';
+                        return;
+                    }
+                    container.innerHTML = data.map(e => {
+                        const prev = e.previous_tag || '—';
+                        const next = e.next_tag || '—';
+                        let pctHtml = '';
+                        if (e.price_change_pct !== null && e.price_change_pct !== undefined) {
+                            const pct = e.price_change_pct;
+                            const color = pct >= 0 ? '#2e7d32' : '#c62828';
+                            const sign = pct >= 0 ? '+' : '';
+                            pctHtml = ' <span style="color:' + color + ';font-weight:600;font-size:1rem">' + sign + pct.toFixed(2) + '%</span>';
+                        }
+                        return '<div class="tag-history-entry">' +
+                            '<span class="tag-history-date">' + e.date + '</span>' +
+                            '<span class="tag-history-change">' + prev + ' ➜ ' + next + pctHtml + '</span>' +
+                        '</div>';
+                    }).join('');
+                })
+                .catch(() => {
+                    container.innerHTML = '<span style="color:#c62828;font-size:0.85rem">Failed to load tag history.</span>';
+                });
+        }
+
+        // GTT Drawer
+        function openGTTDrawer() {
+            document.getElementById('gttOverlay').classList.add('open');
+            document.getElementById('gttDrawer').classList.add('open');
+            loadExistingGTTs();
+        }
+
+        function closeGTTDrawer() {
+            document.getElementById('gttOverlay').classList.remove('open');
+            document.getElementById('gttDrawer').classList.remove('open');
+        }
+
+        function toggleOCOFields() {
+            const isOCO = document.getElementById('gttTriggerType').value === 'oco';
+            document.getElementById('ocoFields').classList.toggle('show', isOCO);
+        }
+
+        function loadExistingGTTs() {
+            const container = document.getElementById('existingGTTs');
+            container.innerHTML = '<span style="color:#999;font-size:0.85rem">Loading...</span>';
+            fetch('/api/gtt/list?symbol=' + encodeURIComponent(symbol))
+                .then(res => res.json())
+                .then(data => {
+                    if (!data || data.length === 0) {
+                        container.innerHTML = '<span style="color:#999;font-size:0.85rem">No existing GTTs for this symbol.</span>';
+                        return;
+                    }
+                    container.innerHTML = data.map(g => {
+                        const triggers = g.UpperTriggerPrice > 0
+                            ? g.TriggerPrice.toFixed(2) + ' / ' + g.UpperTriggerPrice.toFixed(2)
+                            : g.TriggerPrice.toFixed(2);
+                        const typeBadge = g.TriggerType === 'oco'
+                            ? '<span style="background:#f3e5f5;color:#7b1fa2;padding:0.1rem 0.4rem;border-radius:3px;font-size:0.75rem;font-weight:600">OCO</span>'
+                            : '<span style="background:#e3f2fd;color:#1565c0;padding:0.1rem 0.4rem;border-radius:3px;font-size:0.75rem;font-weight:600">Single</span>';
+                        const statusColor = g.Status === 'active' ? '#2e7d32' : (g.Status === 'triggered' ? '#e65100' : '#c62828');
+                        const deleteBtn = g.Status === 'active'
+                            ? ' <button onclick="deleteDrawerGTT(' + g.TriggerID + ')" style="background:#e53935;color:#fff;border:none;border-radius:3px;padding:0.15rem 0.5rem;cursor:pointer;font-size:0.8rem">Delete</button>'
+                            : '';
+                        return '<div class="existing-gtt" id="drawer-gtt-' + g.TriggerID + '">' +
+                            '<div class="gtt-info">' +
+                                '<span>#' + g.TriggerID + ' ' + typeBadge + ' <span style="color:' + statusColor + ';font-weight:600">' + g.Status + '</span></span>' +
+                                deleteBtn +
+                            '</div>' +
+                            '<div class="gtt-detail">Triggers: ' + triggers + ' | Price: ' + g.LimitPrice.toFixed(2) + ' | Qty: ' + g.Quantity + '</div>' +
+                        '</div>';
+                    }).join('');
+                })
+                .catch(() => {
+                    container.innerHTML = '<span style="color:#c62828;font-size:0.85rem">Failed to load GTTs.</span>';
+                });
+        }
+
+        function submitGTT(e) {
+            e.preventDefault();
+            const form = document.getElementById('gttForm');
+            const body = new URLSearchParams(new FormData(form));
+            fetch('/gtt/place', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body
+            }).then(res => {
+                if (res.ok) {
+                    showToast('GTT order placed');
+                    form.reset();
+                    document.getElementById('ocoFields').classList.remove('show');
+                    loadExistingGTTs();
+                } else {
+                    res.text().then(t => showToast('Error: ' + t));
+                }
+            }).catch(() => showToast('GTT request failed'));
+        }
+
+        function deleteDrawerGTT(triggerID) {
+            if (!confirm('Delete GTT #' + triggerID + '?')) return;
+            fetch('/gtt/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'trigger_id=' + triggerID
+            }).then(res => {
+                if (res.ok) {
+                    const el = document.getElementById('drawer-gtt-' + triggerID);
+                    if (el) el.remove();
+                    showToast('GTT #' + triggerID + ' deleted');
+                    // Check if container is empty
+                    const container = document.getElementById('existingGTTs');
+                    if (!container.querySelector('.existing-gtt')) {
+                        container.innerHTML = '<span style="color:#999;font-size:0.85rem">No existing GTTs for this symbol.</span>';
+                    }
+                } else {
+                    res.text().then(t => showToast('Error: ' + t));
+                }
+            }).catch(() => showToast('Delete request failed'));
+        }
+    </script>
 </body>
 </html>
