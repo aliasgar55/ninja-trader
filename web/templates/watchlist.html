@@ -13,7 +13,10 @@
         .content { padding: 2rem; }
         table { border-collapse: collapse; width: 100%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         th, td { padding: 0.5rem 1rem; text-align: left; border-bottom: 1px solid #eee; }
-        th { background: #333; color: #fff; position: sticky; top: 0; }
+        th { background: #333; color: #fff; position: sticky; top: 0; cursor: pointer; user-select: none; }
+        th a { color: #fff; text-decoration: none; display: flex; align-items: center; justify-content: space-between; }
+        th a:hover { color: #ccc; }
+        th .sort-arrow { font-size: 0.7em; margin-left: 0.3rem; }
         tr:hover { background: #f0f0f0; }
         a.symbol-link { color: #1a73e8; text-decoration: none; font-weight: 500; }
         a.symbol-link:hover { text-decoration: underline; }
@@ -37,15 +40,15 @@
         <table>
             <thead>
                 <tr>
-                    <th>Symbol</th>
-                    <th>Full Name</th>
-                    <th>Market Cap</th>
-                    <th>Industry</th>
-                    <th>Index</th>
-                    <th>Price Band</th>
-                    <th>Delivery %</th>
-                    <th>Tag</th>
-                    <th>Holding</th>
+                    <th><a href="/watchlist?sort=symbol&order={{if and (eq .Sort "symbol") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Symbol {{if eq .Sort "symbol"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/watchlist?sort=name&order={{if and (eq .Sort "name") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Full Name {{if eq .Sort "name"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/watchlist?sort=market_cap&order={{if and (eq .Sort "market_cap") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Market Cap {{if eq .Sort "market_cap"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/watchlist?sort=industry&order={{if and (eq .Sort "industry") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Industry {{if eq .Sort "industry"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/watchlist?sort=index&order={{if and (eq .Sort "index") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Index {{if eq .Sort "index"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/watchlist?sort=price_band&order={{if and (eq .Sort "price_band") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Price Band {{if eq .Sort "price_band"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/watchlist?sort=delivery_pct&order={{if and (eq .Sort "delivery_pct") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Delivery % {{if eq .Sort "delivery_pct"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/watchlist?sort=tag&order={{if and (eq .Sort "tag") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Tag {{if eq .Sort "tag"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/watchlist?sort=holding&order={{if and (eq .Sort "holding") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Holding {{if eq .Sort "holding"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
                 </tr>
             </thead>
             <tbody>

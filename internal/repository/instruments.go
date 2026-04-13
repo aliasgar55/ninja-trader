@@ -46,23 +46,48 @@ func (repo *InstrumentRepo) withHoldingQuery() *gorm.DB {
 		Joins("LEFT JOIN historicaldata hd ON hd.symbol = instruments.trading_symbol AND hd.date = (SELECT MAX(h2.date) FROM historicaldata h2 WHERE h2.symbol = instruments.trading_symbol)")
 }
 
-func (repo *InstrumentRepo) GetAllInstrumentsWithHolding(query string) ([]InstrumentWithHolding, error) {
+var allowedSortColumns = map[string]string{
+	"symbol":       "instruments.trading_symbol",
+	"market_cap":   "instruments.market_cap",
+	"industry":     "instruments.basic_industry",
+	"index":        "instruments.\"index\"",
+	"price_band":   "instruments.price_band",
+	"delivery_pct": "delivery_percentage",
+	"tag":          "instruments.tag",
+	"holding":      "holding",
+	"name":         "instruments.instrument_full_name",
+	"active":       "instruments.active",
+}
+
+func buildSortOrder(sort, order string) string {
+	col, ok := allowedSortColumns[sort]
+	if !ok {
+		return "instruments.market_cap DESC"
+	}
+	dir := "ASC"
+	if order == "desc" {
+		dir = "DESC"
+	}
+	return col + " " + dir
+}
+
+func (repo *InstrumentRepo) GetAllInstrumentsWithHolding(query, sort, order string) ([]InstrumentWithHolding, error) {
 	var results []InstrumentWithHolding
 	q := repo.withHoldingQuery().Where("instruments.active = true")
 	if query != "" {
 		q = q.Where("instruments.trading_symbol ILIKE ?", "%"+query+"%")
 	}
-	err := q.Order("instruments.market_cap DESC").Scan(&results).Error
+	err := q.Order(buildSortOrder(sort, order)).Scan(&results).Error
 	return results, err
 }
 
-func (repo *InstrumentRepo) GetWatchlistInstrumentsWithHolding(query string) ([]InstrumentWithHolding, error) {
+func (repo *InstrumentRepo) GetWatchlistInstrumentsWithHolding(query, sort, order string) ([]InstrumentWithHolding, error) {
 	var results []InstrumentWithHolding
 	q := repo.withHoldingQuery().Where("instruments.active = true AND instruments.watchlist = true AND instruments.is_nav = false")
 	if query != "" {
 		q = q.Where("instruments.trading_symbol ILIKE ?", "%"+query+"%")
 	}
-	err := q.Order("instruments.market_cap DESC").Scan(&results).Error
+	err := q.Order(buildSortOrder(sort, order)).Scan(&results).Error
 	return results, err
 }
 

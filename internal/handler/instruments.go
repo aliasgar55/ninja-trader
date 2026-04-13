@@ -38,7 +38,9 @@ type InstrumentHandler struct {
 
 func (h *InstrumentHandler) List(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
-	instruments, err := h.Repo.GetAllInstrumentsWithHolding(query)
+	sort := r.URL.Query().Get("sort")
+	order := r.URL.Query().Get("order")
+	instruments, err := h.Repo.GetAllInstrumentsWithHolding(query, sort, order)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -46,7 +48,9 @@ func (h *InstrumentHandler) List(w http.ResponseWriter, r *http.Request) {
 	h.Tmpl.ExecuteTemplate(w, "instruments.html", struct {
 		Instruments []repo.InstrumentWithHolding
 		Query       string
-	}{instruments, query})
+		Sort        string
+		Order       string
+	}{instruments, query, sort, order})
 }
 
 func (h *InstrumentHandler) Detail(w http.ResponseWriter, r *http.Request) {
@@ -161,7 +165,9 @@ func (h *InstrumentHandler) ToggleWatchlist(w http.ResponseWriter, r *http.Reque
 
 func (h *InstrumentHandler) WatchlistPage(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
-	instruments, err := h.Repo.GetWatchlistInstrumentsWithHolding(query)
+	sort := r.URL.Query().Get("sort")
+	order := r.URL.Query().Get("order")
+	instruments, err := h.Repo.GetWatchlistInstrumentsWithHolding(query, sort, order)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -169,7 +175,9 @@ func (h *InstrumentHandler) WatchlistPage(w http.ResponseWriter, r *http.Request
 	h.Tmpl.ExecuteTemplate(w, "watchlist.html", struct {
 		Instruments []repo.InstrumentWithHolding
 		Query       string
-	}{instruments, query})
+		Sort        string
+		Order       string
+	}{instruments, query, sort, order})
 }
 
 func parsePeriodSince(period string) *time.Time {
