@@ -59,11 +59,16 @@ func (h *InstrumentHandler) Detail(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
+	sort := r.URL.Query().Get("sort")
+	order := r.URL.Query().Get("order")
 	period := r.URL.Query().Get("period")
 	if period == "" {
 		redirectURL := "/instrument?symbol=" + url.QueryEscape(symbol) + "&period=max"
 		if r.URL.Query().Get("watchlist") == "1" {
 			redirectURL += "&watchlist=1"
+		}
+		if sort != "" {
+			redirectURL += "&sort=" + url.QueryEscape(sort) + "&order=" + url.QueryEscape(order)
 		}
 		http.Redirect(w, r, redirectURL, http.StatusFound)
 		return
@@ -74,9 +79,9 @@ func (h *InstrumentHandler) Detail(w http.ResponseWriter, r *http.Request) {
 	watchlistOnly := r.URL.Query().Get("watchlist") == "1"
 	var prev, next string
 	if watchlistOnly {
-		prev, next = h.Repo.GetAdjacentWatchlistSymbols(symbol)
+		prev, next = h.Repo.GetAdjacentWatchlistSymbols(symbol, sort, order)
 	} else {
-		prev, next = h.Repo.GetAdjacentSymbols(symbol)
+		prev, next = h.Repo.GetAdjacentSymbols(symbol, sort, order)
 	}
 	fullName := ""
 	watchlist := false
@@ -130,7 +135,9 @@ func (h *InstrumentHandler) Detail(w http.ResponseWriter, r *http.Request) {
 		DeliveryPercentage float32
 		Tag                string
 		TagOptions         []string
-	}{symbol, fullName, marketCap, basicIndustry, index, r.URL.Query().Get("msg"), tmplPeriod, prev, next, watchlist, watchlistOnly, holding, lastUpdated, needsAdjustment, deliveryPct, tag, []string{"oversold", "touch", "scoop", "overbought", "repel", "horizontal"}})
+		Sort               string
+		Order              string
+	}{symbol, fullName, marketCap, basicIndustry, index, r.URL.Query().Get("msg"), tmplPeriod, prev, next, watchlist, watchlistOnly, holding, lastUpdated, needsAdjustment, deliveryPct, tag, []string{"oversold", "touch", "scoop", "overbought", "repel", "horizontal"}, sort, order})
 }
 
 func (h *InstrumentHandler) ToggleWatchlist(w http.ResponseWriter, r *http.Request) {

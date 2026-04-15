@@ -109,7 +109,7 @@
 <body>
     {{template "nav" "instruments"}}
     <div class="content">
-        <a class="back" href="/">← Back to Instruments</a>
+        <a class="back" href="{{if .WatchlistOnly}}/watchlist{{else}}/{{end}}{{if .Sort}}?sort={{.Sort}}&order={{.Order}}{{end}}">← Back to {{if .WatchlistOnly}}Watchlist{{else}}Instruments{{end}}</a>
         <div class="instrument-header">
             <div>
                 <div style="display:flex;align-items:baseline;gap:0.75rem">
@@ -138,8 +138,8 @@
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.6rem">
                 <div style="display:flex;align-items:center;gap:0.6rem">
-                    {{if .PrevSymbol}}<a id="prevLink" href="/instrument?symbol={{.PrevSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}">← {{.PrevSymbol}}</a>{{end}}
-                    {{if .NextSymbol}}<a id="nextLink" href="/instrument?symbol={{.NextSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}">{{.NextSymbol}} →</a>{{end}}
+                    {{if .PrevSymbol}}<a id="prevLink" href="/instrument?symbol={{.PrevSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}">← {{.PrevSymbol}}</a>{{end}}
+                    {{if .NextSymbol}}<a id="nextLink" href="/instrument?symbol={{.NextSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}">{{.NextSymbol}} →</a>{{end}}
                 </div>
                 <div style="display:flex;align-items:center;gap:0.6rem">
                     <form method="POST" action="/instrument/watchlist" style="margin:0">
@@ -193,13 +193,13 @@
 
 
         <div class="filters">
-            <a id="period-1" href="/instrument?symbol={{.Symbol}}&period=1m{{if .WatchlistOnly}}&watchlist=1{{end}}" class="{{if eq .Period "1m"}}active{{end}}">1M</a>
-            <a id="period-2" href="/instrument?symbol={{.Symbol}}&period=6m{{if .WatchlistOnly}}&watchlist=1{{end}}" class="{{if eq .Period "6m"}}active{{end}}">6M</a>
-            <a id="period-3" href="/instrument?symbol={{.Symbol}}&period=1y{{if .WatchlistOnly}}&watchlist=1{{end}}" class="{{if eq .Period "1y"}}active{{end}}">1Yr</a>
-            <a id="period-4" href="/instrument?symbol={{.Symbol}}&period=3y{{if .WatchlistOnly}}&watchlist=1{{end}}" class="{{if eq .Period "3y"}}active{{end}}">3Yr</a>
-            <a id="period-5" href="/instrument?symbol={{.Symbol}}&period=5y{{if .WatchlistOnly}}&watchlist=1{{end}}" class="{{if eq .Period "5y"}}active{{end}}">5Yr</a>
-            <a id="period-6" href="/instrument?symbol={{.Symbol}}&period=10y{{if .WatchlistOnly}}&watchlist=1{{end}}" class="{{if eq .Period "10y"}}active{{end}}">10Yr</a>
-            <a id="period-0" href="/instrument?symbol={{.Symbol}}&period=max{{if .WatchlistOnly}}&watchlist=1{{end}}" class="{{if eq .Period "max"}}active{{end}}">Max</a>
+            <a id="period-1" href="/instrument?symbol={{.Symbol}}&period=1m{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "1m"}}active{{end}}">1M</a>
+            <a id="period-2" href="/instrument?symbol={{.Symbol}}&period=6m{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "6m"}}active{{end}}">6M</a>
+            <a id="period-3" href="/instrument?symbol={{.Symbol}}&period=1y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "1y"}}active{{end}}">1Yr</a>
+            <a id="period-4" href="/instrument?symbol={{.Symbol}}&period=3y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "3y"}}active{{end}}">3Yr</a>
+            <a id="period-5" href="/instrument?symbol={{.Symbol}}&period=5y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "5y"}}active{{end}}">5Yr</a>
+            <a id="period-6" href="/instrument?symbol={{.Symbol}}&period=10y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "10y"}}active{{end}}">10Yr</a>
+            <a id="period-0" href="/instrument?symbol={{.Symbol}}&period=max{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "max"}}active{{end}}">Max</a>
         </div>
 
         <div class="charts-row">

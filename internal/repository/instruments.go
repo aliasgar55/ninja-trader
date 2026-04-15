@@ -37,11 +37,12 @@ type InstrumentWithHolding struct {
 	models.Instrument
 	Holding            int
 	DeliveryPercentage float32
+	VolumePerTrade     int64
 }
 
 func (repo *InstrumentRepo) withHoldingQuery() *gorm.DB {
 	return repo.Db.Model(&models.Instrument{}).
-		Select("instruments.*, COALESCE(pt.quantity, 0) AS holding, COALESCE(hd.delivery_percentage, 0) AS delivery_percentage").
+    Select("instruments.*, COALESCE(pt.quantity, 0) AS holding, COALESCE(hd.delivery_percentage, 0) AS delivery_percentage, COALESCE(hd.volume_per_trade, 0) AS volume_per_trade").
 		Joins("LEFT JOIN paper_trades pt ON pt.instrument_id = instruments.id").
 		Joins("LEFT JOIN historicaldata hd ON hd.symbol = instruments.trading_symbol AND hd.date = (SELECT MAX(h2.date) FROM historicaldata h2 WHERE h2.symbol = instruments.trading_symbol)")
 }
@@ -57,6 +58,7 @@ var allowedSortColumns = map[string]string{
 	"holding":      "holding",
 	"name":         "instruments.instrument_full_name",
 	"active":       "instruments.active",
+	"vpt":          "volume_per_trade",
 }
 
 func buildSortOrder(sort, order string) string {
@@ -304,34 +306,33 @@ func (repo *InstrumentRepo) GetInstrumentBySymbol(symbol string) (*models.Instru
 	return &instrument, nil
 }
 
-func (repo *InstrumentRepo) GetAdjacentSymbols(symbol string) (prev, next string) {
-	var current models.Instrument
-	if err := repo.Db.Where("trading_symbol = ? AND active = ?", symbol, true).First(&current).Error; err != nil {
-		return
-	}
-	var prevInst, nextInst models.Instrument
-	if repo.Db.Where("active = ? AND market_cap > ?", true, current.MarketCap).Order("market_cap ASC").First(&prevInst).Error == nil {
-		prev = prevInst.TradingSymbol
-	}
-	if repo.Db.Where("active = ? AND market_cap < ?", true, current.MarketCap).Order("market_cap DESC").First(&nextInst).Error == nil {
-		next = nextInst.TradingSymbol
+func (repo *InstrumentRepo) adjacentSymbols(symbol, sort, order string, where string, args ...interface{}) (prev, next string) {
+	var symbols []string
+	repo.withHoldingQuery().
+		Select("instruments.trading_symbol").
+		Where(where, args...).
+		Order(buildSortOrder(sort, order)).
+		Pluck("instruments.trading_symbol", &symbols)
+	for i, s := range symbols {
+		if s == symbol {
+			if i > 0 {
+				prev = symbols[i-1]
+			}
+			if i < len(symbols)-1 {
+				next = symbols[i+1]
+			}
+			return
+		}
 	}
 	return
 }
 
-func (repo *InstrumentRepo) GetAdjacentWatchlistSymbols(symbol string) (prev, next string) {
-	var current models.Instrument
-	if err := repo.Db.Where("trading_symbol = ? AND active = ?", symbol, true).First(&current).Error; err != nil {
-		return
-	}
-	var prevInst, nextInst models.Instrument
-	if repo.Db.Where("active = ? AND watchlist = ? AND market_cap > ?", true, true, current.MarketCap).Order("market_cap ASC").First(&prevInst).Error == nil {
-		prev = prevInst.TradingSymbol
-	}
-	if repo.Db.Where("active = ? AND watchlist = ? AND market_cap < ?", true, true, current.MarketCap).Order("market_cap DESC").First(&nextInst).Error == nil {
-		next = nextInst.TradingSymbol
-	}
-	return
+func (repo *InstrumentRepo) GetAdjacentSymbols(symbol, sort, order string) (prev, next string) {
+	return repo.adjacentSymbols(symbol, sort, order, "instruments.active = ?", true)
+}
+
+func (repo *InstrumentRepo) GetAdjacentWatchlistSymbols(symbol, sort, order string) (prev, next string) {
+	return repo.adjacentSymbols(symbol, sort, order, "instruments.active = ? AND instruments.watchlist = ? AND instruments.is_nav = false", true, true)
 }
 
 func (repo *InstrumentRepo) UpdateInstrument(instrument *models.Instrument) error {
