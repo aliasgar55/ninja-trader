@@ -94,3 +94,4 @@ type AdjustedCloseUpdate struct {
 	Date               time.Time
 	AdjustedClosePrice float64
 }
+

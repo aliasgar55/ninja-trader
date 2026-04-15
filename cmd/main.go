@@ -52,7 +52,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error setting up database, %s", err)
 	}
-	db.AutoMigrate(&models.Instrument{}, &models.Shorts{}, &models.Historicaldata{}, &models.Event{}, &models.PaperTrade{}, &models.PaperTradeLog{}, &models.GTTOrder{}, &models.TagHistory{})
+	db.AutoMigrate(&models.Instrument{}, &models.Shorts{}, &models.Historicaldata{}, &models.Event{}, &models.PaperTrade{}, &models.PaperTradeLog{}, &models.GTTOrder{}, &models.TagHistory{}, &models.AppSetting{})
 
 	instrumentRepo := repo.InstrumentRepo{Db: db}
 	tradeRepo := repo.TradeRepo{Db: db}
@@ -77,7 +77,10 @@ func main() {
 	authHandler := &handler.AuthHandler{
 		KiteClient: kiteClient,
 		APISecret:  os.Getenv("KITE_API_SECRET"),
+		Db:         db,
 	}
+
+	authHandler.LoadSession()
 
 	gttRepo := &repo.GTTRepo{Db: db}
 	gttHandler := &handler.GTTHandler{KiteClient: kiteClient, GTTRepo: gttRepo, Tmpl: tmpl}
