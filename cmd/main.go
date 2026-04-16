@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"log"
@@ -11,6 +12,7 @@ import (
 	models "ninja-trader/internal/model"
 	repo "ninja-trader/internal/repository"
 	"ninja-trader/internal/service"
+	"ninja-trader/internal/ticker"
 	"runtime"
 
 	"os"
@@ -81,6 +83,10 @@ func main() {
 	}
 
 	authHandler.LoadSession()
+
+	tickerService := ticker.New(kiteClient, instrumentRepo)
+	tickerService.Start(context.Background())
+	defer tickerService.Stop()
 
 	gttRepo := &repo.GTTRepo{Db: db}
 	gttHandler := &handler.GTTHandler{KiteClient: kiteClient, GTTRepo: gttRepo, Tmpl: tmpl}

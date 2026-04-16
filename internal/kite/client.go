@@ -7,18 +7,30 @@ import (
 )
 
 type Client struct {
-	client *kiteconnect.Client
+	client      *kiteconnect.Client
+	apiKey      string
+	accessToken string
 }
 
 func New(apiKey string) *Client {
 	kc := kiteconnect.New(apiKey)
 	return &Client{
 		client: kc,
+		apiKey: apiKey,
 	}
 }
 
 func (c *Client) SetAccessToken(token string) {
+	c.accessToken = token
 	c.client.SetAccessToken(token)
+}
+
+func (c *Client) GetAPIKey() string {
+	return c.apiKey
+}
+
+func (c *Client) GetAccessToken() string {
+	return c.accessToken
 }
 
 func (c *Client) GetAllInstruments() (*[]tradingClient.Instrument, error) {
