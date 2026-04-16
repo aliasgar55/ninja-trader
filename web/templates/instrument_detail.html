@@ -192,7 +192,7 @@
         </div>
 
 
-        <div class="filters">
+        <div class="filters" id="chartFilters">
             <a id="period-1" href="/instrument?symbol={{.Symbol}}&period=1m{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "1m"}}active{{end}}">1M</a>
             <a id="period-2" href="/instrument?symbol={{.Symbol}}&period=6m{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "6m"}}active{{end}}">6M</a>
             <a id="period-3" href="/instrument?symbol={{.Symbol}}&period=1y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "1y"}}active{{end}}">1Yr</a>
@@ -200,6 +200,7 @@
             <a id="period-5" href="/instrument?symbol={{.Symbol}}&period=5y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "5y"}}active{{end}}">5Yr</a>
             <a id="period-6" href="/instrument?symbol={{.Symbol}}&period=10y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "10y"}}active{{end}}">10Yr</a>
             <a id="period-0" href="/instrument?symbol={{.Symbol}}&period=max{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "max"}}active{{end}}">Max</a>
+            <span style="margin-left:auto;font-size:1.1rem;color:#555;">VPT: <strong id="vptScoreValue">—</strong> | Div: <strong id="divScoreValue">—</strong></span>
         </div>
 
         <div class="charts-row">
@@ -445,6 +446,20 @@
             const divergence = normVolumeMA.map((vol, i) => 
                 vol === null || normPriceMA[i] === null ? null : vol - normPriceMA[i]
             );
+
+            // Sigmoid: z-score -> 0-100
+            function sigmoid(z) { return 100 / (1 + Math.exp(-z)); }
+            const sigmoidVolumeMA = normVolumeMA.map(v => v === null ? null : sigmoid(v));
+
+            // Show latest VPT Score and Divergence beside filters
+            const lastScore = sigmoidVolumeMA.filter(v => v !== null).pop();
+            if (lastScore !== undefined) {
+                document.getElementById('vptScoreValue').textContent = lastScore.toFixed(1);
+            }
+            const lastDiv = divergence.filter(v => v !== null).pop();
+            if (lastDiv !== undefined) {
+                document.getElementById('divScoreValue').textContent = lastDiv.toFixed(2);
+            }
             console.log(priceData)
 
             priceChart = new Chart(document.getElementById('priceChart'), {
@@ -497,7 +512,17 @@
                         borderDash: [5, 5],
                         pointRadius: 0,
                         fill: false,
-                        yAxisID: 'y2'
+                        yAxisID: 'y3'
+                    }, {
+                        type: 'line',
+                        label: 'VPT Score',
+                        data: sigmoidVolumeMA,
+                        borderColor: '#00838F',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: false,
+                        yAxisID: 'y2',
+                        hidden: true
                     }, {
                         type: 'line',
                         label: 'Zero',
@@ -507,7 +532,7 @@
                         borderDash: [4, 4],
                         pointRadius: 0,
                         fill: false,
-                        yAxisID: 'y2',
+                        yAxisID: 'y3',
                         tooltip: { enabled: false }
                     }]
                 },
@@ -519,10 +544,13 @@
                         x: { title: { display: true, text: 'Date' } },
                         y: { title: { display: true, text: 'Adj. Close Price (₹)' }, position: 'left', beginAtZero: false },
                         y1: { title: { display: true, text: 'Volume/Trade' }, position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } },
-                        y2: { title: { display: true, text: 'Divergence' }, position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, display: false }
+                        y2: { title: { display: true, text: 'VPT Score' }, position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, display: false },
+                        y3: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, display: false }
                     }
                 }
             });
+
+            document.getElementById('chartFilters').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
             volumeTradesChart = new Chart(document.getElementById('volumeTradesChart'), {
                 type: 'bar',
