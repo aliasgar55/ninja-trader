@@ -409,3 +409,13 @@ func GetHistoricalData(symbol, series string, from, to time.Time) ([]HistoricalT
 	return comibnedData, nil
 
 }
+
+type SymbolChange struct {
+	OldSymbol string
+	NewSymbol string
+}
+
+func GetSymbolChanges() ([]SymbolChange, error) {
+	// TODO: fetch from NSE corporate actions API
+	return []SymbolChange{}, nil
+}

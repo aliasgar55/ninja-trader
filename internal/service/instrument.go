@@ -398,5 +398,25 @@ func (s *InstrumentService) ProcessDailyData(symbol string) error {
 func (s *InstrumentService) AdjustPriceByEvents(symbol string) error {
 	// events, err := s.InstruRepo.GetEventsBySymbol(symbol); err
 	return nil
+}
 
+func (s *InstrumentService) RenameSymbol(oldSymbol, newSymbol string) error {
+	return s.InstruRepo.RenameSymbol(oldSymbol, newSymbol)
+}
+
+func (s *InstrumentService) ApplySymbolChanges() (int, error) {
+	changes, err := nse.GetSymbolChanges()
+	if err != nil {
+		return 0, fmt.Errorf("fetching symbol changes: %w", err)
+	}
+	count := 0
+	for _, c := range changes {
+		if err := s.InstruRepo.RenameSymbol(c.OldSymbol, c.NewSymbol); err != nil {
+			log.Printf("Failed to rename %s -> %s: %v", c.OldSymbol, c.NewSymbol, err)
+			continue
+		}
+		log.Printf("Renamed symbol %s -> %s", c.OldSymbol, c.NewSymbol)
+		count++
+	}
+	return count, nil
 }

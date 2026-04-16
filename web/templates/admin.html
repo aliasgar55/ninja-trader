@@ -29,6 +29,12 @@
             <div class="msg">Sync Short Trades job started in background.</div>
         {{else if eq .Msg "sync_daily_started"}}
             <div class="msg">Sync Daily Data job started in background.</div>
+        {{else if eq .Msg "symbol_renamed"}}
+            <div class="msg">Symbol renamed successfully.</div>
+        {{else if eq .Msg "rename_failed"}}
+            <div class="msg" style="background:#f8d7da;color:#721c24;">Symbol rename failed. Check logs.</div>
+        {{else if eq .Msg "rename_missing_fields"}}
+            <div class="msg" style="background:#f8d7da;color:#721c24;">Both old and new symbol are required.</div>
         {{end}}
         <div class="card">
             <h3>Sync Instruments</h3>
@@ -54,6 +60,18 @@
                 <input type="date" id="to" name="to" required>
                 <br><br>
                 <button class="btn btn-primary" type="submit">Run Sync</button>
+            </form>
+        </div>
+        <div class="card">
+            <h3>Rename Symbol</h3>
+            <p>Rename a trading symbol across all tables.</p>
+            <form method="POST" action="/admin/rename-symbol">
+                <label for="old_symbol">Old Symbol</label>
+                <input type="text" id="old_symbol" name="old_symbol" placeholder="e.g. RELIANCE" required>
+                <label for="new_symbol">New Symbol</label>
+                <input type="text" id="new_symbol" name="new_symbol" placeholder="e.g. RELIANCE-NEW" required>
+                <br><br>
+                <button class="btn btn-primary" type="submit">Rename</button>
             </form>
         </div>
     </div>

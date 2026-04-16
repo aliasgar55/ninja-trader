@@ -70,3 +70,23 @@ func (h *AdminHandler) SyncShorts(w http.ResponseWriter, r *http.Request) {
 	}()
 	http.Redirect(w, r, "/admin?msg=sync_shorts_started", http.StatusSeeOther)
 }
+
+func (h *AdminHandler) RenameSymbol(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	oldSymbol := r.FormValue("old_symbol")
+	newSymbol := r.FormValue("new_symbol")
+	if oldSymbol == "" || newSymbol == "" {
+		http.Redirect(w, r, "/admin?msg=rename_missing_fields", http.StatusSeeOther)
+		return
+	}
+	if err := h.Service.RenameSymbol(oldSymbol, newSymbol); err != nil {
+		log.Printf("RenameSymbol error: %v", err)
+		http.Redirect(w, r, "/admin?msg=rename_failed", http.StatusSeeOther)
+		return
+	}
+	log.Printf("Renamed symbol %s -> %s", oldSymbol, newSymbol)
+	http.Redirect(w, r, "/admin?msg=symbol_renamed", http.StatusSeeOther)
+}

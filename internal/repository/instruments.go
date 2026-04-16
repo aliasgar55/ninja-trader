@@ -419,3 +419,24 @@ func (repo *InstrumentRepo) GetClosestAdjustedPrice(symbol string, date time.Tim
 	}
 	return data.AdjustedClosePrice, nil
 }
+
+func (repo *InstrumentRepo) RenameSymbol(oldSymbol, newSymbol string) error {
+	return repo.Db.Transaction(func(tx *gorm.DB) error {
+		tables := []struct{ table, column string }{
+			{"instruments", "trading_symbol"},
+			{"historicaldata", "symbol"},
+			{"shorts", "trading_symbol"},
+			{"paper_trades", "trading_symbol"},
+			{"paper_trade_logs", "trading_symbol"},
+			{"gtt_orders", "trading_symbol"},
+			{"tag_histories", "trading_symbol"},
+			{"events", "trading_symbol"},
+		}
+		for _, t := range tables {
+			if err := tx.Exec("UPDATE "+t.table+" SET "+t.column+" = ? WHERE "+t.column+" = ?", newSymbol, oldSymbol).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
