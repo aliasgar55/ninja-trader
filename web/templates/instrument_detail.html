@@ -660,12 +660,15 @@
                     <div class="form-row">
                         <div>
                             <label>Limit Price</label>
-                            <input type="number" name="limit_price" step="0.05" required placeholder="Limit price">
+                            <input type="number" name="limit_price" id="gttLimitPrice" step="0.05" required placeholder="Limit price" oninput="updateGTTValue()">
                         </div>
                         <div>
                             <label>Quantity</label>
-                            <input type="number" name="quantity" min="1" required placeholder="Qty">
+                            <input type="number" name="quantity" id="gttQuantity" min="1" required placeholder="Qty" oninput="updateGTTValue()">
                         </div>
+                    </div>
+                    <div style="margin-top:0.5rem;font-size:0.9rem;color:#555;">
+                        Value: <span id="gttValue" style="font-weight:600;">—</span>
                     </div>
 
                     <div id="ocoFields" class="oco-fields">
@@ -794,6 +797,17 @@
         function toggleOCOFields() {
             const isOCO = document.getElementById('gttTriggerType').value === 'oco';
             document.getElementById('ocoFields').classList.toggle('show', isOCO);
+        }
+
+        function updateGTTValue() {
+            const limit = parseFloat(document.getElementById('gttLimitPrice').value);
+            const qty = parseInt(document.getElementById('gttQuantity').value);
+            const el = document.getElementById('gttValue');
+            if (limit > 0 && qty > 0) {
+                el.textContent = '₹' + (limit * qty).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            } else {
+                el.textContent = '—';
+            }
         }
 
         function loadExistingGTTs() {
