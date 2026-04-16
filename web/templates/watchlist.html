@@ -30,7 +30,7 @@
 <body>
     {{template "nav" "watchlist"}}
     <div class="content">
-        <h1>Watchlist</h1>
+        <h1>Watchlist ({{len .Instruments}})</h1>
         <form class="search-box" method="GET" action="/watchlist">
             <input type="text" name="q" placeholder="Search by symbol..." value="{{.Query}}" autofocus>
             <button type="submit">Search</button>

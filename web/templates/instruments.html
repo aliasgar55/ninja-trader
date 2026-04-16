@@ -32,7 +32,7 @@
 <body>
     {{template "nav" "instruments"}}
     <div class="content">
-        <h1>Instruments</h1>
+        <h1>Instruments ({{len .Instruments}})</h1>
         <form class="search-box" method="GET" action="/">
             <input type="text" name="q" placeholder="Search by symbol..." value="{{.Query}}" autofocus>
             <button type="submit">Search</button>
