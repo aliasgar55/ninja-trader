@@ -1,7 +1,9 @@
 package repo
 
 import (
+	"fmt"
 	models "ninja-trader/internal/model"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -38,11 +40,13 @@ type InstrumentWithHolding struct {
 	Holding            int
 	DeliveryPercentage float32
 	VolumePerTrade     int64
+	VptScore           float64
+	Divergence         float64
 }
 
 func (repo *InstrumentRepo) withHoldingQuery() *gorm.DB {
 	return repo.Db.Model(&models.Instrument{}).
-    Select("instruments.*, COALESCE(pt.quantity, 0) AS holding, COALESCE(hd.delivery_percentage, 0) AS delivery_percentage, COALESCE(hd.volume_per_trade, 0) AS volume_per_trade").
+	Select("instruments.*, COALESCE(pt.quantity, 0) AS holding, COALESCE(hd.delivery_percentage, 0) AS delivery_percentage, COALESCE(hd.volume_per_trade, 0) AS volume_per_trade, COALESCE(hd.vpt_score, 0) AS vpt_score, COALESCE(hd.divergence, 0) AS divergence").
 		Joins("LEFT JOIN paper_trades pt ON pt.instrument_id = instruments.id").
 		Joins("LEFT JOIN historicaldata hd ON hd.symbol = instruments.trading_symbol AND hd.date = (SELECT MAX(h2.date) FROM historicaldata h2 WHERE h2.symbol = instruments.trading_symbol)")
 }
@@ -59,6 +63,8 @@ var allowedSortColumns = map[string]string{
 	"name":         "instruments.instrument_full_name",
 	"active":       "instruments.active",
 	"vpt":          "volume_per_trade",
+	"vpt_score":    "vpt_score",
+	"divergence":   "divergence",
 }
 
 func buildSortOrder(sort, order string) string {
@@ -193,6 +199,37 @@ func (repo *InstrumentRepo) BulkUpdateAdjustedClosePrice(updates []models.Adjust
 		if err := repo.Db.Model(&models.Historicaldata{}).
 			Where("symbol = ? AND date::date = ?::date", u.Symbol, u.Date).
 			Update("adjusted_close_price", u.AdjustedClosePrice).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (repo *InstrumentRepo) BulkUpdateSignals(updates []models.SignalUpdate) error {
+	batchSize := 500
+	for i := 0; i < len(updates); i += batchSize {
+		end := i + batchSize
+		if end > len(updates) {
+			end = len(updates)
+		}
+		batch := updates[i:end]
+
+		valuesClauses := make([]string, len(batch))
+		args := make([]interface{}, 0, len(batch)*5)
+		for j, u := range batch {
+			valuesClauses[j] = fmt.Sprintf("($%d::bigint, $%d::numeric, $%d::numeric, $%d::numeric, $%d::numeric)", j*5+1, j*5+2, j*5+3, j*5+4, j*5+5)
+			args = append(args, u.ID, u.VptMa20, u.VptScore, u.Divergence, u.DivergenceMax3y)
+		}
+
+		sql := fmt.Sprintf(`UPDATE historicaldata AS h SET
+			vpt_ma20 = v.vpt_ma20,
+			vpt_score = v.vpt_score,
+			divergence = v.divergence,
+			divergence_max3y = v.divergence_max3y
+			FROM (VALUES %s) AS v(id, vpt_ma20, vpt_score, divergence, divergence_max3y)
+			WHERE h.id = v.id`, strings.Join(valuesClauses, ","))
+
+		if err := repo.Db.Exec(sql, args...).Error; err != nil {
 			return err
 		}
 	}

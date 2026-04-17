@@ -35,6 +35,8 @@
             <div class="msg" style="background:#f8d7da;color:#721c24;">Symbol rename failed. Check logs.</div>
         {{else if eq .Msg "rename_missing_fields"}}
             <div class="msg" style="background:#f8d7da;color:#721c24;">Both old and new symbol are required.</div>
+        {{else if eq .Msg "compute_signals_started"}}
+            <div class="msg">Compute Signals backfill started in background.</div>
         {{end}}
         <div class="card">
             <h3>Sync Instruments</h3>
@@ -72,6 +74,13 @@
                 <input type="text" id="new_symbol" name="new_symbol" placeholder="e.g. RELIANCE-NEW" required>
                 <br><br>
                 <button class="btn btn-primary" type="submit">Rename</button>
+            </form>
+        </div>
+        <div class="card">
+            <h3>Compute Signals</h3>
+            <p>Backfill VPT, divergence, and signal scores for all instruments.</p>
+            <form method="POST" action="/admin/compute-signals">
+                <button class="btn btn-primary" type="submit">Run Compute</button>
             </form>
         </div>
     </div>

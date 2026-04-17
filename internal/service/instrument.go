@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"ninja-trader/internal/kite"
 	models "ninja-trader/internal/model"
 	"ninja-trader/internal/nse"
@@ -392,6 +393,11 @@ func (s *InstrumentService) ProcessDailyData(symbol string) error {
 		}
 	}
 	log.Printf("ProcessDailyData completed for %s\n", symbol)
+
+	if err := s.ComputeSignals(symbol); err != nil {
+		log.Printf("ProcessDailyData [%s] error computing signals: %v\n", symbol, err)
+	}
+
 	return nil
 }
 
@@ -419,4 +425,158 @@ func (s *InstrumentService) ApplySymbolChanges() (int, error) {
 		count++
 	}
 	return count, nil
+}
+
+const rollingWindowDays = 1095 // 3 years in calendar days
+
+// ComputeSignals computes VPT MA20, z-scores, sigmoid VPT score, divergence,
+// and 3-year rolling max divergence for a symbol's historical data, then saves to DB.
+func (s *InstrumentService) ComputeSignals(symbol string) error {
+	data, err := s.InstruRepo.GetHistoricalDataBySymbol(symbol)
+	if err != nil {
+		return fmt.Errorf("getting historical data for %s: %w", symbol, err)
+	}
+	if len(data) < 21 {
+		return nil // not enough data for MA20
+	}
+
+	// Compute VPT MA20 (simple moving average of VolumePerTrade over 20 days)
+	vptMa20 := make([]float64, len(data))
+	for i := range data {
+		if i < 19 {
+			continue
+		}
+		var sum float64
+		for j := i - 19; j <= i; j++ {
+			sum += float64(data[j].VolumePerTrade)
+		}
+		vptMa20[i] = sum / 20.0
+	}
+
+	// Compute rolling z-scores using 3-year calendar window
+	priceZ := make([]float64, len(data))
+	vptZ := make([]float64, len(data))
+	for i := range data {
+		if i < 19 { // need at least MA20 to be valid
+			continue
+		}
+		windowStart := data[i].Date.AddDate(0, 0, -rollingWindowDays)
+
+		// Find start index for the rolling window
+		startIdx := i
+		for startIdx > 0 && data[startIdx-1].Date.After(windowStart) {
+			startIdx--
+		}
+
+		// Compute price z-score over window
+		priceZ[i] = zScore(data, startIdx, i, func(d models.Historicaldata) float64 {
+			return d.AdjustedClosePrice
+		})
+
+		// Compute VPT MA20 z-score over window (only valid entries where i >= 19)
+		validStart := startIdx
+		if validStart < 19 {
+			validStart = 19
+		}
+		vptZ[i] = zScoreSlice(vptMa20, validStart, i)
+	}
+
+	// Compute sigmoid VPT score and divergence
+	vptScore := make([]float64, len(data))
+	divergence := make([]float64, len(data))
+	for i := range data {
+		if i < 19 {
+			continue
+		}
+		vptScore[i] = 100.0 / (1.0 + math.Exp(-vptZ[i]))
+		divergence[i] = vptZ[i] - priceZ[i]
+	}
+
+	// Compute 3-year rolling max divergence
+	divMax3y := make([]float64, len(data))
+	for i := range data {
+		if i < 19 {
+			continue
+		}
+		windowStart := data[i].Date.AddDate(0, 0, -rollingWindowDays)
+		maxDiv := math.Inf(-1)
+		for j := i; j >= 19; j-- {
+			if data[j].Date.Before(windowStart) {
+				break
+			}
+			if divergence[j] > maxDiv {
+				maxDiv = divergence[j]
+			}
+		}
+		if math.IsInf(maxDiv, -1) {
+			maxDiv = 0
+		}
+		divMax3y[i] = maxDiv
+	}
+
+	// Build update batch (only rows where MA20 is valid)
+	updates := make([]models.SignalUpdate, 0, len(data)-19)
+	for i := 19; i < len(data); i++ {
+		updates = append(updates, models.SignalUpdate{
+			ID:              data[i].ID,
+			VptMa20:         vptMa20[i],
+			VptScore:        vptScore[i],
+			Divergence:      divergence[i],
+			DivergenceMax3y: divMax3y[i],
+		})
+	}
+
+	if err := s.InstruRepo.BulkUpdateSignals(updates); err != nil {
+		return fmt.Errorf("updating signals for %s: %w", symbol, err)
+	}
+	log.Printf("ComputeSignals [%s] updated %d rows\n", symbol, len(updates))
+	return nil
+}
+
+// zScore computes the z-score of the value at index end, using data[start..end] extracted by fn.
+// Uses sample standard deviation (ddof=1) to match pandas behavior.
+func zScore(data []models.Historicaldata, start, end int, fn func(models.Historicaldata) float64) float64 {
+	n := end - start + 1
+	if n < 2 {
+		return 0
+	}
+	var sum float64
+	for i := start; i <= end; i++ {
+		sum += fn(data[i])
+	}
+	mean := sum / float64(n)
+	var sumSqDiff float64
+	for i := start; i <= end; i++ {
+		d := fn(data[i]) - mean
+		sumSqDiff += d * d
+	}
+	variance := sumSqDiff / float64(n-1) // sample variance (ddof=1)
+	if variance <= 0 {
+		return 0
+	}
+	return (fn(data[end]) - mean) / math.Sqrt(variance)
+}
+
+// zScoreSlice computes the z-score of slice[end] using slice[start..end].
+// Uses sample standard deviation (ddof=1) to match pandas behavior.
+func zScoreSlice(slice []float64, start, end int) float64 {
+	n := end - start + 1
+	if n < 2 {
+		return 0
+	}
+	var sum float64
+	for i := start; i <= end; i++ {
+		sum += slice[i]
+	}
+	mean := sum / float64(n)
+	var sumSqDiff float64
+	for i := start; i <= end; i++ {
+		d := slice[i] - mean
+		sumSqDiff += d * d
+	}
+	variance := sumSqDiff / float64(n-1) // sample variance (ddof=1)
+	if variance <= 0 {
+		return 0
+	}
+	return (slice[end] - mean) / math.Sqrt(variance)
 }

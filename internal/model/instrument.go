@@ -79,6 +79,10 @@ type Historicaldata struct {
 	VolumePerTrade                  int64
 	DeliveryPercentage              float32
 	AdjustementFactor               float64
+	VptMa20                         float64
+	VptScore                        float64
+	Divergence                      float64
+	DivergenceMax3y                 float64
 }
 
 type Shorts struct {
@@ -93,5 +97,13 @@ type AdjustedCloseUpdate struct {
 	Symbol             string
 	Date               time.Time
 	AdjustedClosePrice float64
+}
+
+type SignalUpdate struct {
+	ID              uint
+	VptMa20         float64
+	VptScore        float64
+	Divergence      float64
+	DivergenceMax3y float64
 }
 

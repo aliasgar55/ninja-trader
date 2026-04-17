@@ -48,6 +48,8 @@
                     <th><a href="/?sort=price_band&order={{if and (eq .Sort "price_band") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Price Band {{if eq .Sort "price_band"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
                     <th><a href="/?sort=delivery_pct&order={{if and (eq .Sort "delivery_pct") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Delivery % {{if eq .Sort "delivery_pct"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
                     <th><a href="/?sort=vpt&order={{if and (eq .Sort "vpt") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">VPT {{if eq .Sort "vpt"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/?sort=vpt_score&order={{if and (eq .Sort "vpt_score") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">VPT Score {{if eq .Sort "vpt_score"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/?sort=divergence&order={{if and (eq .Sort "divergence") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Divergence {{if eq .Sort "divergence"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
                     <th><a href="/?sort=tag&order={{if and (eq .Sort "tag") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Tag {{if eq .Sort "tag"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
                     <th><a href="/?sort=holding&order={{if and (eq .Sort "holding") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Holding {{if eq .Sort "holding"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
                     <th>Adj.</th>
@@ -64,6 +66,8 @@
                     <td>{{.PriceBand}}</td>
                     <td>{{if gt .DeliveryPercentage 0.0}}{{printf "%.2f" .DeliveryPercentage}}%{{end}}</td>
                     <td>{{.VolumePerTrade}}</td>
+                    <td>{{if ne .VptScore 0.0}}{{printf "%.1f" .VptScore}}{{end}}</td>
+                    <td>{{if ne .Divergence 0.0}}{{printf "%.2f" .Divergence}}{{end}}</td>
                     <td>{{.Tag}}</td>
                     <td>{{if gt .Holding 0}}{{.Holding}}{{end}}</td>
                     <td>{{if .NeedsAdjsutment}}<span style="display:inline-block;width:8px;height:8px;background:#e53935;border-radius:50%"></span>{{end}}</td>

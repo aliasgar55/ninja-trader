@@ -234,6 +234,10 @@ func (h *InstrumentHandler) ChartData(w http.ResponseWriter, r *http.Request) {
 	noOfTrades := make([]int64, len(rows))
 	adjClose := make([]float64, len(rows))
 	deliveryPercentage := make([]float32, len(rows))
+	vptMa20 := make([]float64, len(rows))
+	vptScore := make([]float64, len(rows))
+	divergence := make([]float64, len(rows))
+	divergenceMax3y := make([]float64, len(rows))
 	for i, r := range rows {
 		labels[i] = r.Date.Format("02 Jan 06")
 		closeValues[i] = r.C
@@ -242,6 +246,10 @@ func (h *InstrumentHandler) ChartData(w http.ResponseWriter, r *http.Request) {
 		noOfTrades[i] = r.NoOfTrades
 		adjClose[i] = r.AdjustedClosePrice
 		deliveryPercentage[i] = r.DeliveryPercentage
+		vptMa20[i] = r.VptMa20
+		vptScore[i] = r.VptScore
+		divergence[i] = r.Divergence
+		divergenceMax3y[i] = r.DivergenceMax3y
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
@@ -252,6 +260,10 @@ func (h *InstrumentHandler) ChartData(w http.ResponseWriter, r *http.Request) {
 		"noOfTrades":         noOfTrades,
 		"adjClose":           adjClose,
 		"deliveryPercentage": deliveryPercentage,
+		"vptMa20":            vptMa20,
+		"vptScore":           vptScore,
+		"divergence":         divergence,
+		"divergenceMax3y":    divergenceMax3y,
 	})
 }
 

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"ninja-trader/internal/service"
+	"sync"
 	"time"
 )
 
@@ -89,4 +90,40 @@ func (h *AdminHandler) RenameSymbol(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Renamed symbol %s -> %s", oldSymbol, newSymbol)
 	http.Redirect(w, r, "/admin?msg=symbol_renamed", http.StatusSeeOther)
+}
+
+func (h *AdminHandler) ComputeSignals(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	go func() {
+		log.Println("ComputeSignals backfill started")
+		instruments, err := h.Service.InstruRepo.GetAllInstruments()
+		if err != nil {
+			log.Printf("ComputeSignals error fetching instruments: %v", err)
+			return
+		}
+		workers := 5
+		ch := make(chan string, len(instruments))
+		var wg sync.WaitGroup
+		for range workers {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for symbol := range ch {
+					if err := h.Service.ComputeSignals(symbol); err != nil {
+						log.Printf("ComputeSignals error for %s: %v", symbol, err)
+					}
+				}
+			}()
+		}
+		for _, inst := range instruments {
+			ch <- inst.TradingSymbol
+		}
+		close(ch)
+		wg.Wait()
+		log.Println("ComputeSignals backfill completed")
+	}()
+	http.Redirect(w, r, "/admin?msg=compute_signals_started", http.StatusSeeOther)
 }
