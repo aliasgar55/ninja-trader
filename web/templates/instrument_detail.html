@@ -72,6 +72,9 @@
         .drawer-section h3 { font-size: 0.95rem; margin: 0 0 0.75rem; color: #333; }
         .gtt-form label { font-size: 0.85rem; color: #555; display: block; margin-bottom: 0.2rem; margin-top: 0.6rem; }
         .gtt-form input, .gtt-form select { width: 100%; padding: 0.4rem 0.6rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95rem; box-sizing: border-box; }
+        .gtt-form input[type="number"]::-webkit-inner-spin-button,
+        .gtt-form input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .gtt-form input[type="number"] { -moz-appearance: textfield; }
         .gtt-form .form-row { display: flex; gap: 0.5rem; }
         .gtt-form .form-row > div { flex: 1; }
         .gtt-submit { margin-top: 1rem; width: 100%; padding: 0.5rem; background: #4CAF50; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.95rem; font-weight: 600; }
@@ -683,7 +686,10 @@
                     </div>
 
                     <label>Trigger Price</label>
-                    <input type="number" name="trigger_price" step="0.05" required placeholder="Trigger price">
+                    <div style="position:relative">
+                        <input type="number" name="trigger_price" id="gttTriggerPrice" step="0.05" required placeholder="Trigger price" oninput="updateTriggerDiff()">
+                        <span id="triggerDiff" style="position:absolute;right:0.6rem;top:50%;transform:translateY(-50%);font-size:0.8rem;font-weight:600;pointer-events:none;"></span>
+                    </div>
 
                     <div class="form-row">
                         <div>
@@ -703,7 +709,10 @@
                         <hr style="margin:0.8rem 0;border:none;border-top:1px solid #eee">
                         <h3 style="font-size:0.9rem;color:#7b1fa2;margin:0 0 0.5rem">Upper Leg (Target)</h3>
                         <label>Upper Trigger Price</label>
-                        <input type="number" name="upper_trigger_price" step="0.05" placeholder="Upper trigger">
+                        <div style="position:relative">
+                            <input type="number" name="upper_trigger_price" id="gttUpperTriggerPrice" step="0.05" placeholder="Upper trigger" oninput="updateTriggerDiff()">
+                            <span id="upperTriggerDiff" style="position:absolute;right:0.6rem;top:50%;transform:translateY(-50%);font-size:0.8rem;font-weight:600;pointer-events:none;"></span>
+                        </div>
                         <div class="form-row">
                             <div>
                                 <label>Upper Limit Price</label>
@@ -838,6 +847,30 @@
             }
         }
 
+        function updateTriggerDiff() {
+            const lastPrice = parseFloat(document.getElementById('gttLastPrice').value);
+            const trigger = parseFloat(document.getElementById('gttTriggerPrice').value);
+            const el = document.getElementById('triggerDiff');
+            if (lastPrice > 0 && trigger > 0) {
+                const diff = ((trigger - lastPrice) / lastPrice * 100).toFixed(1);
+                el.style.color = diff < 0 ? '#2e7d32' : '#c62828';
+                el.textContent = (diff > 0 ? '+' : '') + diff + '%';
+            } else {
+                el.textContent = '';
+            }
+            const upperTrigger = parseFloat(document.getElementById('gttUpperTriggerPrice')?.value);
+            const uel = document.getElementById('upperTriggerDiff');
+            if (uel) {
+                if (lastPrice > 0 && upperTrigger > 0) {
+                    const ud = ((upperTrigger - lastPrice) / lastPrice * 100).toFixed(1);
+                    uel.style.color = ud < 0 ? '#2e7d32' : '#c62828';
+                    uel.textContent = (ud > 0 ? '+' : '') + ud + '%';
+                } else {
+                    uel.textContent = '';
+                }
+            }
+        }
+
         function loadExistingGTTs() {
             const container = document.getElementById('existingGTTs');
             container.innerHTML = '<span style="color:#999;font-size:0.85rem">Loading...</span>';
@@ -859,12 +892,23 @@
                         const deleteBtn = g.Status === 'active'
                             ? ' <button onclick="deleteDrawerGTT(' + g.TriggerID + ')" style="background:#e53935;color:#fff;border:none;border-radius:3px;padding:0.15rem 0.5rem;cursor:pointer;font-size:0.8rem">Delete</button>'
                             : '';
+                        let diffHtml = '';
+                        if (g.LastPrice > 0) {
+                            const diff = ((g.TriggerPrice - g.LastPrice) / g.LastPrice * 100).toFixed(1);
+                            const clr = diff < 0 ? '#2e7d32' : '#c62828';
+                            diffHtml = ' | Diff: <span style="color:' + clr + ';font-weight:600">' + (diff > 0 ? '+' : '') + diff + '%</span>';
+                            if (g.UpperTriggerPrice > 0) {
+                                const ud = ((g.UpperTriggerPrice - g.LastPrice) / g.LastPrice * 100).toFixed(1);
+                                const uc = ud < 0 ? '#2e7d32' : '#c62828';
+                                diffHtml += ' / <span style="color:' + uc + ';font-weight:600">' + (ud > 0 ? '+' : '') + ud + '%</span>';
+                            }
+                        }
                         return '<div class="existing-gtt" id="drawer-gtt-' + g.TriggerID + '">' +
                             '<div class="gtt-info">' +
                                 '<span>#' + g.TriggerID + ' ' + typeBadge + ' <span style="color:' + statusColor + ';font-weight:600">' + g.Status + '</span></span>' +
                                 deleteBtn +
                             '</div>' +
-                            '<div class="gtt-detail">Triggers: ' + triggers + ' | Price: ' + g.LimitPrice.toFixed(2) + ' | Qty: ' + g.Quantity + '</div>' +
+                            '<div class="gtt-detail">Triggers: ' + triggers + ' | Price: ' + g.LimitPrice.toFixed(2) + ' | Qty: ' + g.Quantity + diffHtml + '</div>' +
                         '</div>';
                     }).join('');
                 })

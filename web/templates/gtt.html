@@ -56,6 +56,7 @@
                     <th>Limit</th>
                     <th>Qty</th>
                     <th>Last Price</th>
+                    <th>Diff %</th>
                     <th>Created</th>
                     <th>Actions</th>
                 </tr>
@@ -90,6 +91,7 @@
                         {{if eq .TriggerType "oco"}} / {{printf "%.0f" .UpperQuantity}}{{end}}
                     </td>
                     <td>{{printf "%.2f" .LastPrice}}</td>
+                    <td data-trigger="{{.TriggerPrice}}" data-last="{{.LastPrice}}" data-upper="{{.UpperTriggerPrice}}" data-type="{{.TriggerType}}" class="diff-cell"></td>
                     <td style="font-size:0.85rem">{{.CreatedAt.Format "02/01/06 15:04"}}</td>
                     <td>
                         {{if eq .Status "active"}}
@@ -145,6 +147,23 @@
                     btn.textContent = 'Sync from Kite';
                 });
         }
+
+        document.querySelectorAll('.diff-cell').forEach(cell => {
+            const trigger = parseFloat(cell.dataset.trigger);
+            const last = parseFloat(cell.dataset.last);
+            const upper = parseFloat(cell.dataset.upper);
+            const type = cell.dataset.type;
+            if (!last || last === 0) { cell.textContent = '—'; return; }
+            const diff = ((trigger - last) / last * 100).toFixed(1);
+            const color = diff < 0 ? '#2e7d32' : '#c62828';
+            let text = '<span style="color:' + color + ';font-weight:600">' + (diff > 0 ? '+' : '') + diff + '%</span>';
+            if (type === 'oco' && upper > 0) {
+                const upperDiff = ((upper - last) / last * 100).toFixed(1);
+                const upperColor = upperDiff < 0 ? '#2e7d32' : '#c62828';
+                text += ' / <span style="color:' + upperColor + ';font-weight:600">' + (upperDiff > 0 ? '+' : '') + upperDiff + '%</span>';
+            }
+            cell.innerHTML = text;
+        });
     </script>
 </body>
 </html>
