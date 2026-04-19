@@ -27,9 +27,6 @@ type AuthHandler struct {
 	userID string
 }
 
-func (h *AuthHandler) IsLoggedIn() bool {
-	return h.userID != ""
-}
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	loginURL := h.KiteClient.GetLoginURL()
