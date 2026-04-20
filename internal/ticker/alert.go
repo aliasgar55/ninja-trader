@@ -52,9 +52,8 @@ func (a *PriceAndVolumeAlert) Check(token uint32, tick *TickData) {
 
 	ratio := float64(tick.TotalBuyQuantity) / float64(tick.TotalSellQuantity)
 	pctFromLow := (tick.LastPrice - tick.Low) / tick.Low
-	pctFromHigh := (tick.Open - tick.LastPrice) / tick.Open
 
-  if pctFromLow > a.PriceThreshold || pctFromHigh > a.PriceThreshold {
+  if pctFromLow > a.PriceThreshold {
     info := a.Instruments[token]
     if info.VptScore < 90 {
       return
