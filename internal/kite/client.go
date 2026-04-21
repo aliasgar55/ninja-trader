@@ -42,6 +42,10 @@ func (c *Client) GetGTT(triggerID int) (kiteconnect.GTT, error) {
 	return c.client.GetGTT(triggerID)
 }
 
+func (c *Client) ModifyGTT(triggerID int, params kiteconnect.GTTParams) (kiteconnect.GTTResponse, error) {
+	return c.client.ModifyGTT(triggerID, params)
+}
+
 func (c *Client) DeleteGTT(triggerID int) (kiteconnect.GTTResponse, error) {
 	return c.client.DeleteGTT(triggerID)
 }

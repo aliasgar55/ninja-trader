@@ -20,17 +20,17 @@ type GTTHandler struct {
 }
 
 func (h *GTTHandler) ListPage(w http.ResponseWriter, r *http.Request) {
-	orders, err := h.GTTRepo.GetAll()
+	orders, err := h.GTTRepo.GetAllWithPrice()
 	if err != nil {
 		log.Printf("Error fetching GTTs from DB: %v", err)
 		h.Tmpl.ExecuteTemplate(w, "gtt.html", struct {
-			GTTs  []models.GTTOrder
+			GTTs  []repo.GTTOrderWithPrice
 			Error string
 		}{nil, err.Error()})
 		return
 	}
 	h.Tmpl.ExecuteTemplate(w, "gtt.html", struct {
-		GTTs  []models.GTTOrder
+		GTTs  []repo.GTTOrderWithPrice
 		Error string
 	}{orders, ""})
 }

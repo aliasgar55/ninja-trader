@@ -55,7 +55,7 @@
                     <th>Trigger</th>
                     <th>Limit</th>
                     <th>Qty</th>
-                    <th>Last Price</th>
+                    <th>Adj Close</th>
                     <th>Diff %</th>
                     <th>Created</th>
                     <th>Actions</th>
@@ -90,8 +90,8 @@
                         {{printf "%.0f" .Quantity}}
                         {{if eq .TriggerType "oco"}} / {{printf "%.0f" .UpperQuantity}}{{end}}
                     </td>
-                    <td>{{printf "%.2f" .LastPrice}}</td>
-                    <td data-trigger="{{.TriggerPrice}}" data-last="{{.LastPrice}}" data-upper="{{.UpperTriggerPrice}}" data-type="{{.TriggerType}}" class="diff-cell"></td>
+                    <td>{{printf "%.2f" .AdjustedClosePrice}}</td>
+                    <td data-trigger="{{.TriggerPrice}}" data-last="{{.AdjustedClosePrice}}" data-upper="{{.UpperTriggerPrice}}" data-type="{{.TriggerType}}" class="diff-cell"></td>
                     <td style="font-size:0.85rem">{{.CreatedAt.Format "02/01/06 15:04"}}</td>
                     <td>
                         {{if eq .Status "active"}}

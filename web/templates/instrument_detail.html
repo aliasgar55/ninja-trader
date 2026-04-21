@@ -519,8 +519,7 @@
                         borderDash: [5, 5],
                         pointRadius: 0,
                         fill: false,
-                        yAxisID: 'y3',
-                        hidden: true
+                        yAxisID: 'y3'
                     }, {
                         type: 'line',
                         label: 'VPT Score (JS)',
@@ -550,7 +549,8 @@
                         borderDash: [3, 3],
                         pointRadius: 0,
                         fill: false,
-                        yAxisID: 'y3'
+                        yAxisID: 'y3',
+                        hidden: true
                     }, {
                         type: 'line',
                         label: 'DB VPT Score',
@@ -938,12 +938,13 @@
                             ? ' <button onclick="deleteDrawerGTT(' + g.TriggerID + ')" style="background:#e53935;color:#fff;border:none;border-radius:3px;padding:0.15rem 0.5rem;cursor:pointer;font-size:0.8rem">Delete</button>'
                             : '';
                         let diffHtml = '';
-                        if (g.LastPrice > 0) {
-                            const diff = ((g.TriggerPrice - g.LastPrice) / g.LastPrice * 100).toFixed(1);
+                        const adjClose = parseFloat(document.getElementById('gttLastPrice').value);
+                        if (adjClose > 0) {
+                            const diff = ((g.TriggerPrice - adjClose) / adjClose * 100).toFixed(1);
                             const clr = diff < 0 ? '#2e7d32' : '#c62828';
                             diffHtml = ' | Diff: <span style="color:' + clr + ';font-weight:600">' + (diff > 0 ? '+' : '') + diff + '%</span>';
                             if (g.UpperTriggerPrice > 0) {
-                                const ud = ((g.UpperTriggerPrice - g.LastPrice) / g.LastPrice * 100).toFixed(1);
+                                const ud = ((g.UpperTriggerPrice - adjClose) / adjClose * 100).toFixed(1);
                                 const uc = ud < 0 ? '#2e7d32' : '#c62828';
                                 diffHtml += ' / <span style="color:' + uc + ';font-weight:600">' + (ud > 0 ? '+' : '') + ud + '%</span>';
                             }
