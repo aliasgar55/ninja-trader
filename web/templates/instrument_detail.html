@@ -85,6 +85,8 @@
         .gtt-submit:hover { background: #43A047; }
         .gtt-btn { padding: 0; border-radius: 6px; border: 1px solid #FF9800; cursor: pointer; font-size: 0.9rem; font-weight: 600; background: #fff; color: #FF9800; width: 120px; height: 36px; text-align: center; }
         .gtt-btn:hover { background: #FFF3E0; }
+        .tradingview-btn { padding: 0; border-radius: 6px; border: 1px solid #2962FF; cursor: pointer; font-size: 0.9rem; font-weight: 600; background: #fff; color: #2962FF; width: 120px; height: 36px; text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+        .tradingview-btn:hover { background: #E3F2FD; }
         .oco-fields { display: none; }
         .oco-fields.show { display: block; }
         .existing-gtt { border: 1px solid #eee; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem; font-size: 0.85rem; }
@@ -167,6 +169,7 @@
                 <div style="display:flex;gap:0.5rem">
                     <button class="tag-history-btn" onclick="openTagHistoryDrawer()">Tag History</button>
                     <button class="gtt-btn" onclick="openGTTDrawer()">GTT Order</button>
+                    <a href="https://www.tradingview.com/chart/?symbol=NSE:{{.Symbol}}" target="_blank" rel="noopener noreferrer" class="tradingview-btn">TradingView</a>
                 </div>
             </div>
         </div>
