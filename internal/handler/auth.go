@@ -24,7 +24,8 @@ type AuthHandler struct {
 	APISecret  string
 	Db         *gorm.DB
 
-	userID string
+	userID      string
+	tokenExpiry time.Time
 }
 
 
@@ -57,11 +58,13 @@ func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	h.userID = session.UserID
 
+  expiry := nextDaySixAMIST()
+	h.tokenExpiry = expiry
+
 	encToken, err := encrypt(session.AccessToken, h.APISecret)
 	if err != nil {
 		log.Printf("Failed to encrypt access token: %v", err)
 	} else {
-		expiry := nextDaySixAMIST()
 		h.setSetting("kite_access_token", encToken)
 		h.setSetting("kite_user_id", session.UserID)
 		h.setSetting("kite_token_expiry", expiry.Format(time.RFC3339))
@@ -74,10 +77,17 @@ func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) Status(w http.ResponseWriter, r *http.Request) {
 	uid := h.userID
+	loggedIn := uid != ""
+
+	if loggedIn && !h.tokenExpiry.IsZero() && time.Now().After(h.tokenExpiry) {
+		loggedIn = false
+		h.userID = ""
+		h.KiteClient.SetAccessToken("")
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
-		"logged_in": uid != "",
+		"logged_in": loggedIn,
 		"user_id":   uid,
 	})
 }
@@ -116,8 +126,9 @@ func (h *AuthHandler) LoadSession() {
 
 	userID := h.getSetting("kite_user_id")
 
-	h.KiteClient.SetAccessToken(token)
+  h.KiteClient.SetAccessToken(token)
 	h.userID = userID
+	h.tokenExpiry = expiry
 
 	log.Printf("Restored Kite session from DB — user: %s, expires: %s", userID, expiry.Format(time.RFC3339))
 }
