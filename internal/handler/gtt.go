@@ -40,9 +40,14 @@ func (h *GTTHandler) ListAPI(w http.ResponseWriter, r *http.Request) {
 	var orders []models.GTTOrder
 	var err error
 	if symbolFilter != "" {
-		orders, err = h.GTTRepo.GetBySymbol(symbolFilter)
-	} else {
-		orders, err = h.GTTRepo.GetAll()
+		orders, err := h.GTTRepo.GetBySymbol(symbolFilter)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(orders)
+		return
 	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

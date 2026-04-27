@@ -17,6 +17,7 @@ func (r *GTTRepo) Create(order *models.GTTOrder) error {
 type GTTOrderWithPrice struct {
 	models.GTTOrder
 	AdjustedClosePrice float64
+	DiffPercent        float64
 }
 
 func (r *GTTRepo) GetAll() ([]models.GTTOrder, error) {
@@ -28,11 +29,17 @@ func (r *GTTRepo) GetAll() ([]models.GTTOrder, error) {
 func (r *GTTRepo) GetAllWithPrice() ([]GTTOrderWithPrice, error) {
 	var orders []GTTOrderWithPrice
 	err := r.Db.Raw(`
-		SELECT g.*, COALESCE(h.adjusted_close_price, 0) AS adjusted_close_price
+		SELECT g.*, COALESCE(h.adjusted_close_price, 0) AS adjusted_close_price,
+			CASE WHEN COALESCE(h.adjusted_close_price, 0) > 0
+				THEN ((g.trigger_price - h.adjusted_close_price) / h.adjusted_close_price) * 100
+				ELSE 0 END AS diff_percent
 		FROM gtt_orders g
 		LEFT JOIN historicaldata h ON h.symbol = g.trading_symbol
 			AND h.date = (SELECT MAX(date) FROM historicaldata WHERE symbol = g.trading_symbol)
-		ORDER BY g.created_at DESC
+		ORDER BY CASE g.status WHEN 'active' THEN 0 WHEN 'triggered' THEN 1 ELSE 2 END ASC,
+			ABS(CASE WHEN COALESCE(h.adjusted_close_price, 0) > 0
+			THEN ((g.trigger_price - h.adjusted_close_price) / h.adjusted_close_price) * 100
+			ELSE 0 END) ASC
 	`).Scan(&orders).Error
 	return orders, err
 }
@@ -70,7 +77,13 @@ func (r *GTTRepo) Upsert(order *models.GTTOrder) error {
 		return err
 	}
 	return r.Db.Model(&existing).Updates(map[string]interface{}{
-		"status":     order.Status,
-		"last_price": order.LastPrice,
+		"status":              order.Status,
+		"last_price":          order.LastPrice,
+		"trigger_price":       order.TriggerPrice,
+		"limit_price":         order.LimitPrice,
+		"quantity":            order.Quantity,
+		"upper_trigger_price": order.UpperTriggerPrice,
+		"upper_limit_price":   order.UpperLimitPrice,
+		"upper_quantity":      order.UpperQuantity,
 	}).Error
 }
