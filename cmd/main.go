@@ -106,7 +106,7 @@ func main() {
 	http.HandleFunc("/admin", adminHandler.Page)
 	http.HandleFunc("/admin/sync-instruments", adminHandler.SyncInstruments)
 	http.HandleFunc("/admin/sync-shorts", adminHandler.SyncShorts)
-  http.HandleFunc("/admin/sync-daily", adminHandler.SyncDailyData)
+	http.HandleFunc("/admin/sync-daily", adminHandler.SyncDailyData)
 	http.HandleFunc("/admin/rename-symbol", adminHandler.RenameSymbol)
 	http.HandleFunc("/admin/compute-signals", adminHandler.ComputeSignals)
 	http.HandleFunc("/gtt", gttHandler.ListPage)

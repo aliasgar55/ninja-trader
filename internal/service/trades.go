@@ -54,7 +54,13 @@ func (s *TradeService) Trade(symbol string, quantity uint, tradeType models.Trad
 
 	totalCost := float64(trade.Quantity)*trade.AveragePrice + float64(parsedQty)*instrumentHistory.C
 	trade.Quantity += parsedQty
-	trade.AveragePrice = totalCost / float64(trade.Quantity)
+	if trade.Quantity ==  0 {
+		trade.AveragePrice = 0
+	} else {
+		trade.AveragePrice = totalCost / float64(trade.Quantity)
+
+	}
+
 	fmt.Printf("Trade price: %f\n", trade.AveragePrice)
 
 	log := &models.PaperTradeLog{
