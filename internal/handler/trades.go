@@ -63,6 +63,7 @@ func (h *TradeHandler) Trade(w http.ResponseWriter, r *http.Request) {
 	symbol := r.FormValue("symbol")
 	qtyStr := r.FormValue("quantity")
 	action := r.FormValue("action")
+	priceStr := r.FormValue("price")
 	if symbol == "" || qtyStr == "" || action == "" {
 		http.Error(w, "symbol, quantity and action are required", http.StatusBadRequest)
 		return
@@ -72,11 +73,19 @@ func (h *TradeHandler) Trade(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid quantity", http.StatusBadRequest)
 		return
 	}
+	var price float64
+	if priceStr != "" {
+		price, err = strconv.ParseFloat(priceStr, 64)
+		if err != nil || price < 0 {
+			http.Error(w, "invalid price", http.StatusBadRequest)
+			return
+		}
+	}
 	tradeType := models.Buy
 	if action == "SELL" {
 		tradeType = models.Sell
 	}
-	if err := h.TradeService.Trade(symbol, uint(qty), tradeType); err != nil {
+	if err := h.TradeService.Trade(symbol, uint(qty), tradeType, price); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

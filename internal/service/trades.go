@@ -23,7 +23,7 @@ func (s *TradeService) GetTradeLogsBySymbol(symbol string) ([]models.PaperTradeL
 	return s.TradeRepo.GetLogsBySymbol(symbol)
 }
 
-func (s *TradeService) Trade(symbol string, quantity uint, tradeType models.TradeType) error {
+func (s *TradeService) Trade(symbol string, quantity uint, tradeType models.TradeType, price float64) error {
 	instrument, err := s.InstruRepo.GetInstrumentBySymbol(symbol)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return fmt.Errorf("no instrument found for symbol: %s", symbol)
@@ -42,6 +42,11 @@ func (s *TradeService) Trade(symbol string, quantity uint, tradeType models.Trad
 		return err
 	}
 
+	execPrice := instrumentHistory.C
+	if price > 0 {
+		execPrice = price
+	}
+
 	trade, err := s.TradeRepo.GetTradeBySymbol(symbol)
 	if err != nil {
 		trade = &models.PaperTrade{Instrument: *instrument, InstrumentID: instrument.ID, TradingSymbol: symbol}
@@ -52,7 +57,7 @@ func (s *TradeService) Trade(symbol string, quantity uint, tradeType models.Trad
 		parsedQty = -parsedQty
 	}
 
-	totalCost := float64(trade.Quantity)*trade.AveragePrice + float64(parsedQty)*instrumentHistory.C
+	totalCost := float64(trade.Quantity)*trade.AveragePrice + float64(parsedQty)*execPrice
 	trade.Quantity += parsedQty
 	if trade.Quantity ==  0 {
 		trade.AveragePrice = 0
@@ -71,8 +76,8 @@ func (s *TradeService) Trade(symbol string, quantity uint, tradeType models.Trad
 		TradeType:     tradeType,
 		Date:          tradeDate,
 		ExecutedAt:    time.Now(),
-		AvgPrice:      instrumentHistory.Vwap,
-		Amount:        float64(quantity) * instrumentHistory.Vwap,
+		AvgPrice:      execPrice,
+		Amount:        float64(quantity) * execPrice,
 	}
 
 	return s.TradeRepo.UpsertTrade(trade, log)

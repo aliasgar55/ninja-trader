@@ -818,7 +818,10 @@
         function submitOrder() {
             const qty = parseInt(document.getElementById('orderQty').value);
             if (!qty || qty < 1) { alert('Enter a valid quantity'); return; }
-            const body = new URLSearchParams({ symbol, quantity: qty, action: currentAction });
+            const params = { symbol, quantity: qty, action: currentAction };
+            const price = document.getElementById('orderPrice').value;
+            if (price) params.price = price;
+            const body = new URLSearchParams(params);
             fetch('/trade', { method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
                 .then(res => {
                     if (res.ok) {
