@@ -43,6 +43,8 @@
                 <tr>
                     <th>Symbol</th>
                     <th>Tag</th>
+                    <th>Industry</th>
+                    <th>Index</th>
                     <th>Quantity</th>
                     <th>Avg Price (₹)</th>
                     <th>Current Price (₹)</th>
@@ -57,6 +59,8 @@
                 <tr onclick="showLogs('{{.TradingSymbol}}')">
                     <td><a class="symbol-link" href="/instrument?symbol={{.TradingSymbol}}">{{.TradingSymbol}}</a></td>
                     <td>{{.Tag}}</td>
+                    <td>{{.BasicIndustry}}</td>
+                    <td>{{.Index}}</td>
                     <td>{{.Quantity}}</td>
                     <td>{{printf "%.2f" .AveragePrice}}</td>
                     <td>{{printf "%.2f" .CurrentPrice}}</td>

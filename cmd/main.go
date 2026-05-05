@@ -52,7 +52,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error setting up database, %s", err)
 	}
-	db.AutoMigrate(&models.Instrument{}, &models.Shorts{}, &models.Historicaldata{}, &models.Event{}, &models.PaperTrade{}, &models.PaperTradeLog{}, &models.GTTOrder{}, &models.TagHistory{}, &models.AppSetting{})
+  db.AutoMigrate(&models.Instrument{}, &models.Shorts{}, &models.Historicaldata{}, &models.Event{}, &models.PaperTrade{}, &models.PaperTradeLog{}, &models.GTTOrder{}, &models.TagHistory{}, &models.AppSetting{}, &models.Note{})
 
 	instrumentRepo := repo.InstrumentRepo{Db: db}
 	tradeRepo := repo.TradeRepo{Db: db}
@@ -100,6 +100,9 @@ func main() {
 	http.HandleFunc("/instrument/watchlist", instrumentHandler.ToggleWatchlist)
 	http.HandleFunc("/instrument/tag", instrumentHandler.SetTag)
 	http.HandleFunc("/api/instrument/tag-history", instrumentHandler.TagHistoryAPI)
+	http.HandleFunc("/api/instrument/notes", instrumentHandler.NotesAPI)
+	http.HandleFunc("/instrument/notes/create", instrumentHandler.CreateNote)
+	http.HandleFunc("/instrument/notes/delete", instrumentHandler.DeleteNote)
 	http.HandleFunc("/shorts", shortsHandler.Page)
 	http.HandleFunc("/api/shorts/chart", shortsHandler.ChartData)
 	http.HandleFunc("/api/shorts/total", shortsHandler.TotalChartData)

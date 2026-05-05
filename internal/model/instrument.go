@@ -107,3 +107,11 @@ type SignalUpdate struct {
 	DivergenceMax3y float64
 }
 
+type Note struct {
+	gorm.Model
+	InstrumentID  uint   `gorm:"not null;index"`
+	TradingSymbol string `gorm:"index"`
+	Date          time.Time
+	Text          string
+}
+

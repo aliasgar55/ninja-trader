@@ -169,6 +169,7 @@
                 <div style="display:flex;gap:0.5rem">
                     <button class="tag-history-btn" onclick="openTagHistoryDrawer()">Tag History</button>
                     <button class="gtt-btn" onclick="openGTTDrawer()">GTT Order</button>
+                    <button class="tag-history-btn" onclick="openNotesDrawer()">Notes</button>
                     <a href="https://www.tradingview.com/chart/?symbol=NSE:{{.Symbol}}" target="_blank" rel="noopener noreferrer" class="tradingview-btn">TradingView</a>
                 </div>
             </div>
@@ -308,7 +309,8 @@
         });
 
         document.addEventListener('keydown', e => {
-            if (e.target.tagName === 'INPUT') return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (document.getElementById('notesDrawer').classList.contains('open')) return;
             const menu = document.getElementById('tagMenu');
             const tagOpen = menu.classList.contains('open');
 
@@ -800,6 +802,28 @@
         </div>
     </div>
 
+    <!-- Notes Drawer -->
+    <div id="notesOverlay" class="drawer-overlay" onclick="closeNotesDrawer()"></div>
+    <div id="notesDrawer" class="drawer">
+        <div class="drawer-header">
+            <h2>Notes — {{.Symbol}}</h2>
+            <button class="drawer-close" onclick="closeNotesDrawer()">&times;</button>
+        </div>
+        <div class="drawer-body">
+            <div class="drawer-section">
+                <h3>Existing Notes</h3>
+                <div id="notesContent"><span style="color:#999;font-size:0.85rem">Loading...</span></div>
+            </div>
+            <div class="drawer-section">
+                <h3>Add Note</h3>
+                <form id="noteForm" onsubmit="submitNote(event)" style="display:flex;flex-direction:column;gap:0.5rem">
+                    <textarea name="text" id="noteText" rows="3" placeholder="Write a note..." required style="padding:0.5rem;border:1px solid #ccc;border-radius:4px;resize:vertical;font-family:inherit"></textarea>
+                    <button type="submit" style="align-self:flex-start;padding:0.4rem 1rem;background:#1a73e8;color:#fff;border:none;border-radius:4px;cursor:pointer">Save</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script>
         let currentAction = null;
         function openOrderModal(action) {
@@ -839,7 +863,7 @@
                 closeOrderModal();
                 closeGTTDrawer();
                 closeTagHistoryDrawer();
-
+                closeNotesDrawer();
             }
         });
 
@@ -1025,6 +1049,80 @@
                     res.text().then(t => showToast('Error: ' + t));
                 }
             }).catch(() => showToast('Delete request failed'));
+        }
+
+        // Notes Drawer
+        function openNotesDrawer() {
+            document.getElementById('notesOverlay').classList.add('open');
+            document.getElementById('notesDrawer').classList.add('open');
+            loadNotes();
+        }
+
+        function closeNotesDrawer() {
+            document.getElementById('notesOverlay').classList.remove('open');
+            document.getElementById('notesDrawer').classList.remove('open');
+        }
+
+        function loadNotes() {
+            const container = document.getElementById('notesContent');
+            container.innerHTML = '<span style="color:#999;font-size:0.85rem">Loading...</span>';
+            fetch('/api/instrument/notes?symbol=' + encodeURIComponent(symbol))
+                .then(res => res.json())
+                .then(data => {
+                    if (!data || data.length === 0) {
+                        container.innerHTML = '<span style="color:#999;font-size:0.85rem">No notes for this symbol.</span>';
+                        return;
+                    }
+                    container.innerHTML = data.map(n => {
+                        const price = n.price > 0 ? '₹' + n.price.toFixed(2) : '';
+                        return '<div style="border-bottom:1px solid #eee;padding:0.75rem 0">' +
+                            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem">' +
+                                '<span style="font-size:0.8rem;color:#666">' + n.date + '</span>' +
+                                '<span style="display:flex;align-items:center;gap:0.5rem">' +
+                                    '<span style="font-size:0.8rem;color:#1a73e8;font-weight:600">' + price + '</span>' +
+                                    '<button onclick="deleteNote(' + n.id + ')" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:0.85rem;padding:0">✕</button>' +
+                                '</span>' +
+                            '</div>' +
+                            '<div style="font-size:0.9rem">' + n.text + '</div>' +
+                        '</div>';
+                    }).join('');
+                })
+                .catch(() => {
+                    container.innerHTML = '<span style="color:#c62828;font-size:0.85rem">Failed to load notes.</span>';
+                });
+        }
+
+        function submitNote(e) {
+            e.preventDefault();
+            const text = document.getElementById('noteText').value.trim();
+            if (!text) return;
+            const body = new URLSearchParams({ symbol, text });
+            fetch('/instrument/notes/create', { method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
+                .then(res => {
+                    if (res.ok) {
+                        document.getElementById('noteText').value = '';
+                        loadNotes();
+                        showToast('Note saved');
+                    } else {
+                        res.text().then(t => showToast('Error: ' + t));
+                    }
+                })
+                .catch(() => showToast('Failed to save note'));
+        }
+
+        function deleteNote(id) {
+            if (!confirm('Delete this note?')) return;
+            const body = new URLSearchParams({ id });
+            fetch('/instrument/notes/delete', { method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
+                .then(res => {
+                    if (res.ok) {
+                        loadNotes();
+                        showToast('Note deleted');
+                    } else {
+                        res.text().then(t => showToast('Error: ' + t));
+                    }
+                })
+                .catch(() => showToast('Delete failed'));
         }
     </script>
 </body>

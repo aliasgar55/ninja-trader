@@ -447,3 +447,91 @@ func (h *InstrumentHandler) TagHistoryAPI(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(entries)
 }
+
+func (h *InstrumentHandler) NotesAPI(w http.ResponseWriter, r *http.Request) {
+	symbol := r.URL.Query().Get("symbol")
+	if symbol == "" {
+		http.Error(w, "symbol required", http.StatusBadRequest)
+		return
+	}
+	notes, err := h.Repo.GetNotesBySymbol(symbol)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	type noteEntry struct {
+		ID    uint    `json:"id"`
+		Date  string  `json:"date"`
+		Price float64 `json:"price"`
+		Text  string  `json:"text"`
+	}
+	entries := make([]noteEntry, len(notes))
+	for i, n := range notes {
+		var price float64
+		history, err := h.Repo.GetPreviousTrade(symbol, n.Date)
+		if err == nil {
+			price = history.C
+		}
+		entries[i] = noteEntry{
+			ID:    n.ID,
+			Date:  n.Date.Format("02 Jan 2006"),
+			Price: price,
+			Text:  n.Text,
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(entries)
+}
+
+func (h *InstrumentHandler) CreateNote(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	symbol := r.FormValue("symbol")
+	text := r.FormValue("text")
+	if symbol == "" || text == "" {
+		http.Error(w, "symbol and text are required", http.StatusBadRequest)
+		return
+	}
+
+	instrument, err := h.Repo.GetInstrumentBySymbol(symbol)
+	if err != nil {
+		http.Error(w, "instrument not found", http.StatusNotFound)
+		return
+	}
+
+	note := &models.Note{
+		InstrumentID:  instrument.ID,
+		TradingSymbol: symbol,
+		Date:          time.Now(),
+		Text:          text,
+	}
+	if err := h.Repo.CreateNote(note); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *InstrumentHandler) DeleteNote(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	idStr := r.FormValue("id")
+	if idStr == "" {
+		http.Error(w, "id is required", http.StatusBadRequest)
+		return
+	}
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	if err := h.Repo.DeleteNote(uint(id)); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}

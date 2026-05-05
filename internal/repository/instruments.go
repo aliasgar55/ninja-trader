@@ -468,6 +468,7 @@ func (repo *InstrumentRepo) RenameSymbol(oldSymbol, newSymbol string) error {
 			{"gtt_orders", "trading_symbol"},
 			{"tag_histories", "trading_symbol"},
 			{"events", "trading_symbol"},
+			{"notes", "trading_symbol"},
 		}
 		for _, t := range tables {
 			if err := tx.Exec("UPDATE "+t.table+" SET "+t.column+" = ? WHERE "+t.column+" = ?", newSymbol, oldSymbol).Error; err != nil {
@@ -476,4 +477,39 @@ func (repo *InstrumentRepo) RenameSymbol(oldSymbol, newSymbol string) error {
 		}
 		return nil
 	})
+}
+
+func (repo *InstrumentRepo) GetLatestSignals() (map[string][2]float64, error) {
+	type row struct {
+		Symbol     string
+		VptScore   float64
+		Divergence float64
+	}
+	var rows []row
+	err := repo.Db.Raw(`SELECT h.symbol, h.vpt_score, h.divergence FROM historicaldata h
+		INNER JOIN (SELECT symbol, MAX(date) AS max_date FROM historicaldata GROUP BY symbol) m
+		ON h.symbol = m.symbol AND h.date = m.max_date
+		WHERE h.vpt_score != 0 OR h.divergence != 0`).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string][2]float64, len(rows))
+	for _, r := range rows {
+		result[r.Symbol] = [2]float64{r.VptScore, r.Divergence}
+	}
+	return result, nil
+}
+
+func (repo *InstrumentRepo) GetNotesBySymbol(symbol string) ([]models.Note, error) {
+	var notes []models.Note
+	err := repo.Db.Where("trading_symbol = ?", symbol).Order("date DESC").Find(&notes).Error
+	return notes, err
+}
+
+func (repo *InstrumentRepo) CreateNote(note *models.Note) error {
+	return repo.Db.Create(note).Error
+}
+
+func (repo *InstrumentRepo) DeleteNote(id uint) error {
+	return repo.Db.Delete(&models.Note{}, id).Error
 }
