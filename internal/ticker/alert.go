@@ -4,15 +4,18 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os/exec"
 	"sync"
 )
 
 // InstrumentInfo holds DB metadata for an instrument, used in alert logging.
 type InstrumentInfo struct {
-	Symbol   string
-	Tag      string
-	Industry string
-	Index    string
+	Symbol     string
+	Tag        string
+	Industry   string
+	Index      string
+	VptScore   float64
+	Divergence float64
 }
 
 // Alert is the interface for tick-based alert checks.
@@ -49,9 +52,15 @@ func (a *PriceAndVolumeAlert) Check(token uint32, tick *TickData) {
 
 	ratio := float64(tick.TotalBuyQuantity) / float64(tick.TotalSellQuantity)
 	pctFromLow := (tick.LastPrice - tick.Low) / tick.Low
+	pctFromHigh := (tick.Open - tick.LastPrice) / tick.Open
 
-	if pctFromLow > a.PriceThreshold {
-		a.mu.Lock()
+  if pctFromLow > a.PriceThreshold || pctFromHigh > a.PriceThreshold {
+    info := a.Instruments[token]
+    if info.VptScore < 90 {
+      return
+    }
+
+    a.mu.Lock()
 		lastPrice, seen := a.lastAlerted[token]
 		shouldAlert := !seen || math.Abs(tick.LastPrice-lastPrice)/lastPrice >= a.MoveThreshold
 		if shouldAlert {
@@ -59,17 +68,12 @@ func (a *PriceAndVolumeAlert) Check(token uint32, tick *TickData) {
 		}
 		a.mu.Unlock()
 
-		if shouldAlert {
-			info := a.Instruments[token]
-			sym := info.Symbol
-			if sym == "" {
-				sym = "unknown"
-			}
-			tag := info.Tag
-			if tag == "" {
-				tag = "-"
-			}
-			label := "NEW"
+    if shouldAlert {
+      sym := info.Symbol
+      if sym == "" {
+        sym = "unknown"
+      }
+      label := "NEW"
 			if seen {
 				pctMove := (tick.LastPrice - lastPrice) / lastPrice * 100
 				if pctMove > 0 {
@@ -78,8 +82,10 @@ func (a *PriceAndVolumeAlert) Check(token uint32, tick *TickData) {
 					label = fmt.Sprintf("%.1f%%", pctMove)
 				}
 			}
-			log.Printf("[ALERT %s] %.1f%% from low | %s [%s] @ %.2f (avg: %.2f, low: %.2f) | buy/sell %.2f (buy: %d, sell: %d) | %s | %s",
-				label, pctFromLow*100, sym, tag, tick.LastPrice, tick.AverageTradePrice, tick.Low, ratio, tick.TotalBuyQuantity, tick.TotalSellQuantity, info.Industry, info.Index)
+      log.Printf("[ALERT %s] %s | up: %.1f%% | vpt: %.0f | div: %.2f | %.2f/%.2f | b/s: %.2f | %s | %s",
+        label, sym, pctFromLow*100, info.VptScore, info.Divergence, tick.LastPrice, tick.AverageTradePrice, ratio, info.Industry, info.Index)
+      msg := fmt.Sprintf("%s | up: %.1f%% | vpt: %.0f | div: %.2f | %.2f", sym, pctFromLow*100, info.VptScore, info.Divergence, tick.LastPrice)
+      exec.Command("osascript", "-e", fmt.Sprintf(`display notification "%s" with title "Ninja Trader" sound name "Glass"`, msg)).Start()
 		}
 	}
 }

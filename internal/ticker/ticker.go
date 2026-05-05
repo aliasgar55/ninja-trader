@@ -82,19 +82,27 @@ func (s *Service) Start(ctx context.Context) {
 
 	s.tokens = make([]uint32, len(instruments))
 	s.instruments = make(map[uint32]InstrumentInfo, len(instruments))
+
+	signals, _ := s.repo.GetLatestSignals()
+
 	for i, inst := range instruments {
 		token := uint32(inst.InstrumentToken)
 		s.tokens[i] = token
-		s.instruments[token] = InstrumentInfo{
+		info := InstrumentInfo{
 			Symbol:   inst.TradingSymbol,
 			Tag:      inst.Tag,
 			Industry: inst.BasicIndustry,
 			Index:    inst.Index,
 		}
+		if sig, ok := signals[inst.TradingSymbol]; ok {
+			info.VptScore = sig[0]
+			info.Divergence = sig[1]
+		}
+		s.instruments[token] = info
 	}
 
 	s.alerts = []Alert{
-		NewPriceAndVolumeAlert(0.03, 1.0, s.instruments),
+    NewPriceAndVolumeAlert(0.02, 1.0, s.instruments),
 	}
 
 	s.startWebSocket(ctx, accessToken)
