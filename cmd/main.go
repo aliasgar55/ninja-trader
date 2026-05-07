@@ -90,6 +90,7 @@ func main() {
 
 	gttRepo := &repo.GTTRepo{Db: db}
 	gttHandler := &handler.GTTHandler{KiteClient: kiteClient, GTTRepo: gttRepo, Tmpl: tmpl}
+	breadthHandler := &handler.BreadthHandler{Ticker: tickerService, Tmpl: tmpl}
 
 	http.HandleFunc("/trade", tradeHandler.Trade)
 	http.HandleFunc("/trades", tradeHandler.TradesPage)
@@ -126,6 +127,8 @@ func main() {
 	http.HandleFunc("/auth/login", authHandler.Login)
 	http.HandleFunc("/auth/callback", authHandler.Callback)
 	http.HandleFunc("/api/auth/status", authHandler.Status)
+	http.HandleFunc("/breadth", breadthHandler.Page)
+	http.HandleFunc("/api/breadth", breadthHandler.DataAPI)
 
 	addr := ":6969"
 	log.Printf("UI available at http://localhost%s\n", addr)

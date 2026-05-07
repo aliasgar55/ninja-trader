@@ -29,6 +29,12 @@ type TickData struct {
 	Timestamp         time.Time
 }
 
+// BreadthSnapshot records the breadth count at a point in time.
+type BreadthSnapshot struct {
+	Time  time.Time
+	Count int64
+}
+
 // Service manages the Kite WebSocket ticker connection.
 type Service struct {
 	kiteClient *kite.Client
@@ -43,6 +49,12 @@ type Service struct {
 
 	mu     sync.Mutex
 	cancel context.CancelFunc
+
+	// Breadth tracking: count of instruments up 2%+ from day's low
+	breadthFlags   sync.Map     // map[uint32]bool
+	breadthCount   atomic.Int64
+	breadthHistory []BreadthSnapshot
+	breadthMu      sync.Mutex
 }
 
 // New creates a new ticker service.
@@ -106,6 +118,7 @@ func (s *Service) Start(ctx context.Context) {
 	}
 
 	s.startWebSocket(ctx, accessToken)
+	s.startBreadthRecorder(ctx)
 	// log.Printf("[ticker] started with %d instruments", len(s.tokens))
 }
 
@@ -204,6 +217,18 @@ func (s *Service) handleTick(tick kitemodels.Tick) {
 	ptr := val.(*atomic.Pointer[TickData])
 	ptr.Store(td)
 
+	// Breadth tracking
+	isUp := td.Low > 0 && (td.LastPrice-td.Low)/td.Low >= 0.02
+	prev, _ := s.breadthFlags.Load(tick.InstrumentToken)
+	wasUp, _ := prev.(bool)
+	if isUp && !wasUp {
+		s.breadthFlags.Store(tick.InstrumentToken, true)
+		s.breadthCount.Add(1)
+	} else if !isUp && wasUp {
+		s.breadthFlags.Store(tick.InstrumentToken, false)
+		s.breadthCount.Add(-1)
+	}
+
 	// Run alerts
 	for _, alert := range s.alerts {
 		alert.Check(tick.InstrumentToken, td)
@@ -217,3 +242,38 @@ func (s *Service) SymbolForToken(token uint32) string {
 
 // compile-time check that Service uses the correct model
 var _ = models.Instrument{}
+
+func (s *Service) startBreadthRecorder(ctx context.Context) {
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				snapshot := BreadthSnapshot{
+					Time:  time.Now(),
+					Count: s.breadthCount.Load(),
+				}
+				s.breadthMu.Lock()
+				s.breadthHistory = append(s.breadthHistory, snapshot)
+				s.breadthMu.Unlock()
+			}
+		}
+	}()
+}
+
+// GetBreadthCount returns the current number of instruments up 2%+ from day's low.
+func (s *Service) GetBreadthCount() int64 {
+	return s.breadthCount.Load()
+}
+
+// GetBreadthHistory returns the time-series of breadth snapshots.
+func (s *Service) GetBreadthHistory() []BreadthSnapshot {
+	s.breadthMu.Lock()
+	defer s.breadthMu.Unlock()
+	result := make([]BreadthSnapshot, len(s.breadthHistory))
+	copy(result, s.breadthHistory)
+	return result
+}

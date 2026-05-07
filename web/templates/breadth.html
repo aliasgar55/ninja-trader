@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ninja Trader - Market Breadth</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 0; background: #f5f5f5; }
+        .nav { display: flex; gap: 0; background: #333; padding: 0 1rem; }
+        .nav a { color: #ccc; text-decoration: none; padding: 0.75rem 1.5rem; }
+        .nav a:hover { background: #444; color: #fff; }
+        .nav a.active { color: #fff; border-bottom: 2px solid #4CAF50; }
+        .content { padding: 2rem; }
+        .chart-container { background: #fff; border-radius: 8px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .breadth-count { font-size: 2rem; font-weight: 700; color: #1a73e8; margin-bottom: 1rem; }
+        .breadth-label { font-size: 0.9rem; color: #666; margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+    {{template "nav" "breadth"}}
+    <div class="content">
+        <h1>Market Breadth</h1>
+        <div class="breadth-label">Stocks up 2%+ from day's low</div>
+        <div class="breadth-count" id="currentCount">—</div>
+        <div class="chart-container">
+            <canvas id="breadthChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let chart = null;
+
+        async function loadBreadth() {
+            try {
+                const res = await fetch('/api/breadth');
+                const data = await res.json();
+                document.getElementById('currentCount').textContent = data.current;
+
+                if (!chart) {
+                    chart = new Chart(document.getElementById('breadthChart'), {
+                        type: 'line',
+                        data: {
+                            labels: data.labels,
+                            datasets: [{
+                                label: 'Stocks up 2% from low',
+                                data: data.values,
+                                borderColor: '#4CAF50',
+                                backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: 0,
+                                borderWidth: 2,
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                x: { title: { display: true, text: 'Time' } },
+                                y: { title: { display: true, text: 'Count' }, beginAtZero: true }
+                            },
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            interaction: {
+                                intersect: false,
+                                mode: 'index'
+                            }
+                        }
+                    });
+                } else {
+                    chart.data.labels = data.labels;
+                    chart.data.datasets[0].data = data.values;
+                    chart.update('none');
+                }
+            } catch (err) {
+                console.error('Failed to load breadth data:', err);
+            }
+        }
+
+        loadBreadth();
+        setInterval(loadBreadth, 30000);
+    </script>
+</body>
+</html>
