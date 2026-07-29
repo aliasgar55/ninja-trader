@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ninja Trader - Alerts</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 0; background: #f5f5f5; }
+        .nav { display: flex; gap: 0; background: #333; padding: 0 1rem; }
+        .nav a { color: #ccc; text-decoration: none; padding: 0.75rem 1.5rem; }
+        .nav a:hover { background: #444; color: #fff; }
+        .nav a.active { color: #fff; border-bottom: 2px solid #4CAF50; }
+        .content { padding: 2rem; }
+        table { border-collapse: collapse; width: 100%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th, td { padding: 0.5rem 1rem; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #333; color: #fff; position: sticky; top: 0; }
+        tr:hover { background: #f0f0f0; }
+        a.symbol-link { color: #1a73e8; text-decoration: none; font-weight: 500; }
+        a.symbol-link:hover { text-decoration: underline; }
+        .empty { color: #888; padding: 2rem; text-align: center; }
+        .toolbar { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .toolbar h1 { margin: 0; font-size: 1.5rem; }
+        .nav-group { display: flex; align-items: center; gap: 0.5rem; background: #fff; padding: 0.4rem 0.8rem; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .nav-group a { text-decoration: none; color: #1a73e8; font-weight: 500; font-size: 0.9rem; padding: 0.2rem 0.5rem; border-radius: 4px; }
+        .nav-group a:hover { background: #e3f2fd; }
+        .nav-group .date-label { font-weight: 600; font-size: 0.9rem; color: #333; min-width: 150px; text-align: center; }
+        .compact-toggle { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; cursor: pointer; user-select: none; }
+        .compact-toggle input { cursor: pointer; }
+        .count { font-size: 0.85rem; color: #666; margin-bottom: 0.75rem; }
+        .section-title { font-size: 1rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        .section-title.price { color: #1565c0; }
+        .section-title.volume { color: #2e7d32; }
+    </style>
+</head>
+<body>
+    {{template "nav" "alerts"}}
+    <div class="content">
+        <div class="toolbar">
+            <h1>Alerts</h1>
+            <div class="nav-group">
+                <a href="#" id="prevDay">← Prev</a>
+                <span class="date-label" id="dateLabel"></span>
+                <a href="#" id="nextDay">Next →</a>
+            </div>
+            <label class="compact-toggle"><input type="checkbox" id="compactToggle"> Compact</label>
+        </div>
+        <div class="count" id="alertCount">Loading...</div>
+
+        <div class="section-title price">Price Alerts</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Symbol</th>
+                    <th>Price</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody id="priceAlertBody">
+            </tbody>
+        </table>
+
+        <div class="section-title volume">Volume Alerts</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Symbol</th>
+                    <th>Price</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody id="volumeAlertBody">
+            </tbody>
+        </table>
+    </div>
+    <script>
+        let currentDate = new Date();
+        currentDate.setHours(0,0,0,0);
+
+        function formatDate(d) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        function formatDisplay(d) {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const opts = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
+            const label = d.toLocaleDateString('en-IN', opts);
+            if (d.getTime() === today.getTime()) return label + ' (Today)';
+            return label;
+        }
+
+        function loadAlerts() {
+            document.getElementById('dateLabel').textContent = formatDisplay(currentDate);
+            const compact = document.getElementById('compactToggle').checked;
+            fetch('/api/alerts?date=' + formatDate(currentDate))
+                .then(r => r.json())
+                .then(alerts => {
+                    const priceAlerts = alerts.filter(a => a.type === 'PRICE').reverse();
+                    const volumeAlerts = alerts.filter(a => a.type === 'VOLUME').reverse();
+                    document.getElementById('alertCount').textContent = alerts.length + ' alerts (' + priceAlerts.length + ' price, ' + volumeAlerts.length + ' volume)';
+
+                    function groupBySymbol(arr) {
+                        const groups = {};
+                        arr.forEach(a => {
+                            if (!groups[a.symbol]) groups[a.symbol] = [];
+                            groups[a.symbol].push(a);
+                        });
+                        return groups;
+                    }
+
+                    function renderGroup(groups) {
+                        let html = '';
+                        if (compact) {
+                            for (const [symbol, items] of Object.entries(groups)) {
+                                const last = items[0]; // already reversed, first is latest
+                                html += `<tr style="cursor:pointer" onclick="window.location='/instrument?symbol=${encodeURIComponent(symbol)}'"><td>${last.time}</td><td><a class="symbol-link" href="/instrument?symbol=${encodeURIComponent(symbol)}">${symbol}</a> (${items.length})</td><td>${last.price.toFixed(2)}</td><td>${last.message}</td></tr>`;
+                            }
+                        } else {
+                            for (const [symbol, items] of Object.entries(groups)) {
+                                html += `<tr style="background:#f5f5f5;"><td colspan="4" style="font-weight:600;padding:0.6rem 1rem;"><a class="symbol-link" href="/instrument?symbol=${encodeURIComponent(symbol)}">${symbol}</a> (${items.length})</td></tr>`;
+                                items.forEach(a => {
+                                    html += `<tr style="cursor:pointer" onclick="window.location='/instrument?symbol=${encodeURIComponent(a.symbol)}'"><td>${a.time}</td><td><a class="symbol-link" href="/instrument?symbol=${encodeURIComponent(a.symbol)}">${a.symbol}</a></td><td>${a.price.toFixed(2)}</td><td>${a.message}</td></tr>`;
+                                });
+                            }
+                        }
+                        return html || '<tr><td colspan="4" class="empty">No alerts</td></tr>';
+                    }
+
+                    document.getElementById('priceAlertBody').innerHTML = renderGroup(groupBySymbol(priceAlerts));
+                    document.getElementById('volumeAlertBody').innerHTML = renderGroup(groupBySymbol(volumeAlerts));
+                });
+        }
+
+        document.getElementById('compactToggle').addEventListener('change', loadAlerts);
+
+        document.getElementById('prevDay').addEventListener('click', (e) => {
+            e.preventDefault();
+            currentDate.setDate(currentDate.getDate() - 1);
+            loadAlerts();
+        });
+        document.getElementById('nextDay').addEventListener('click', (e) => {
+            e.preventDefault();
+            const today = new Date(); today.setHours(0,0,0,0);
+            if (currentDate < today) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                loadAlerts();
+            }
+        });
+
+        loadAlerts();
+        setInterval(loadAlerts, 10000);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') { e.preventDefault(); document.getElementById('prevDay').click(); }
+            if (e.key === 'ArrowRight') { e.preventDefault(); document.getElementById('nextDay').click(); }
+        });
+    </script>
+</body>
+</html>

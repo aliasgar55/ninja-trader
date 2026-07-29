@@ -54,43 +54,55 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error setting up database, %s", err)
 	}
-  db.AutoMigrate(&models.Instrument{}, &models.Shorts{}, &models.Historicaldata{}, &models.Event{}, &models.PaperTrade{}, &models.PaperTradeLog{}, &models.GTTOrder{}, &models.TagHistory{}, &models.AppSetting{}, &models.Note{})
+  db.AutoMigrate(&models.Instrument{}, &models.Shorts{}, &models.Historicaldata{}, &models.Event{}, &models.PaperTrade{}, &models.PaperTradeLog{}, &models.GTTOrder{}, &models.TagHistory{}, &models.AppSetting{}, &models.Note{}, &models.AlertLog{}, &models.KiteAlert{})
 
 	instrumentRepo := repo.InstrumentRepo{Db: db}
 	tradeRepo := repo.TradeRepo{Db: db}
 	instrumentService := &service.InstrumentService{InstruRepo: instrumentRepo}
 	tradeService := &service.TradeService{TradeRepo: tradeRepo, InstruRepo: instrumentRepo}
 
-	tmpl := template.Must(template.ParseGlob("web/templates/*.html"))
-
-	instrumentHandler := &handler.InstrumentHandler{Repo: instrumentRepo, TradeRepo: tradeRepo, Service: instrumentService, Tmpl: tmpl}
-	tradeHandler := &handler.TradeHandler{TradeService: tradeService, Tmpl: tmpl}
-	adminHandler := &handler.AdminHandler{Service: instrumentService, Tmpl: tmpl}
-	shortsHandler := &handler.ShortsHandler{Repo: instrumentRepo, Tmpl: tmpl}
-
-	kiteClient := kite.New(os.Getenv("KITE_API_KEY"))
-	if token := os.Getenv("KITE_ACCESS_TOKEN"); token != "" {
-		kiteClient.SetAccessToken(token)
-		log.Println("Using KITE_ACCESS_TOKEN from env")
-	} else {
-		log.Println("No KITE_ACCESS_TOKEN set — use /auth/login for Kite OAuth")
+	funcMap := template.FuncMap{
+		"add": func(a, b int) int { return a + b },
 	}
+	tmpl := template.Must(template.New("").Funcs(funcMap).ParseGlob("web/templates/*.html"))
 
-	authHandler := &handler.AuthHandler{
-		KiteClient: kiteClient,
-		APISecret:  os.Getenv("KITE_API_SECRET"),
-		Db:         db,
-	}
+  instrumentHandler := &handler.InstrumentHandler{Repo: instrumentRepo, TradeRepo: tradeRepo, Service: instrumentService, Tmpl: tmpl}
+  tradeHandler := &handler.TradeHandler{TradeService: tradeService, Tmpl: tmpl}
+  shortsHandler := &handler.ShortsHandler{Repo: instrumentRepo, Tmpl: tmpl}
 
-	authHandler.LoadSession()
+  kiteClient := kite.New(os.Getenv("KITE_API_KEY"))
+  if token := os.Getenv("KITE_ACCESS_TOKEN"); token != "" {
+    kiteClient.SetAccessToken(token)
+    log.Println("Using KITE_ACCESS_TOKEN from env")
+  } else {
+    log.Println("No KITE_ACCESS_TOKEN set — use /auth/login for Kite OAuth")
+  }
 
-	tickerService := ticker.New(kiteClient, instrumentRepo)
-	tickerService.Start(context.Background())
-	defer tickerService.Stop()
+  authHandler := &handler.AuthHandler{
+    KiteClient: kiteClient,
+    APISecret:  os.Getenv("KITE_API_SECRET"),
+    Db:         db,
+  }
 
-	gttRepo := &repo.GTTRepo{Db: db}
-	gttHandler := &handler.GTTHandler{KiteClient: kiteClient, GTTRepo: gttRepo, Tmpl: tmpl}
-	breadthHandler := &handler.BreadthHandler{Ticker: tickerService, Tmpl: tmpl}
+  authHandler.LoadSession()
+
+  tickerService := ticker.New(kiteClient, instrumentRepo)
+  // Check if ticker was enabled in settings
+  var tickerSetting models.AppSetting
+  if err := db.Where("key = ?", "ticker_enabled").First(&tickerSetting).Error; err == nil && tickerSetting.Value == "false" {
+    log.Println("[ticker] disabled by admin setting, not starting")
+  } else {
+    tickerService.Start(context.Background())
+  }
+  defer tickerService.Stop()
+
+  adminHandler := &handler.AdminHandler{Service: instrumentService, Ticker: tickerService, Db: db, Tmpl: tmpl}
+
+  gttRepo := &repo.GTTRepo{Db: db}
+  gttHandler := &handler.GTTHandler{KiteClient: kiteClient, GTTRepo: gttRepo, Tmpl: tmpl}
+  kiteAlertRepo := &repo.KiteAlertRepo{Db: db}
+  kiteAlertHandler := &handler.KiteAlertHandler{KiteClient: kiteClient, Repo: kiteAlertRepo, Tmpl: tmpl}
+  breadthHandler := &handler.BreadthHandler{Ticker: tickerService, Tmpl: tmpl}
 
 	http.HandleFunc("/trade", tradeHandler.Trade)
 	http.HandleFunc("/trades", tradeHandler.TradesPage)
@@ -103,8 +115,9 @@ func main() {
 	http.HandleFunc("/instrument/sync-history", instrumentHandler.SyncTradeHistory)
 	http.HandleFunc("/instrument/sync-adj-close", instrumentHandler.SyncAdjClosePrice)
 	http.HandleFunc("/instrument/sync-split-dividend", instrumentHandler.SyncSplitAndDividend)
-	http.HandleFunc("/instrument/process-daily", instrumentHandler.ProcessDailyData)
-	http.HandleFunc("/instrument/watchlist", instrumentHandler.ToggleWatchlist)
+  http.HandleFunc("/instrument/process-daily", instrumentHandler.ProcessDailyData)
+  http.HandleFunc("/instrument/adjust-price", instrumentHandler.AdjustPrice)
+  http.HandleFunc("/instrument/watchlist", instrumentHandler.ToggleWatchlist)
 	http.HandleFunc("/instrument/tag", instrumentHandler.SetTag)
 	http.HandleFunc("/api/instrument/tag-history", instrumentHandler.TagHistoryAPI)
 	http.HandleFunc("/api/instrument/notes", instrumentHandler.NotesAPI)
@@ -118,17 +131,31 @@ func main() {
 	http.HandleFunc("/admin/sync-shorts", adminHandler.SyncShorts)
 	http.HandleFunc("/admin/sync-daily", adminHandler.SyncDailyData)
 	http.HandleFunc("/admin/rename-symbol", adminHandler.RenameSymbol)
-	http.HandleFunc("/admin/compute-signals", adminHandler.ComputeSignals)
+  http.HandleFunc("/admin/compute-signals", adminHandler.ComputeSignals)
+  http.HandleFunc("/api/ticker/status", adminHandler.TickerStatus)
+  http.HandleFunc("/api/ticker/toggle", adminHandler.TickerToggle)
+  http.HandleFunc("/api/last-url", adminHandler.GetLastURL)
+  http.HandleFunc("/api/last-url/save", adminHandler.SaveLastURL)
 	http.HandleFunc("/gtt", gttHandler.ListPage)
 	http.HandleFunc("/gtt/place", gttHandler.Place)
 	http.HandleFunc("/gtt/delete", gttHandler.Delete)
 	http.HandleFunc("/api/gtt/list", gttHandler.ListAPI)
-	http.HandleFunc("/gtt/sync", gttHandler.Sync)
-	http.HandleFunc("/auth/login", authHandler.Login)
-	http.HandleFunc("/auth/callback", authHandler.Callback)
-	http.HandleFunc("/api/auth/status", authHandler.Status)
-	http.HandleFunc("/breadth", breadthHandler.Page)
-	http.HandleFunc("/api/breadth", breadthHandler.DataAPI)
+  http.HandleFunc("/gtt/sync", gttHandler.Sync)
+  http.HandleFunc("/kite-alerts", kiteAlertHandler.ListPage)
+  http.HandleFunc("/kite-alerts/create", kiteAlertHandler.Create)
+  http.HandleFunc("/kite-alerts/delete", kiteAlertHandler.Delete)
+  http.HandleFunc("/kite-alerts/sync", kiteAlertHandler.Sync)
+  http.HandleFunc("/api/kite-alerts", kiteAlertHandler.ListAPI)
+  http.HandleFunc("/auth/login", authHandler.Login)
+  http.HandleFunc("/auth/callback", authHandler.Callback)
+  http.HandleFunc("/auth/logout", authHandler.Logout)
+  http.HandleFunc("/api/auth/status", authHandler.Status)
+  http.HandleFunc("/breadth", breadthHandler.Page)
+  http.HandleFunc("/api/breadth", breadthHandler.DataAPI)
+  http.HandleFunc("/alerts", breadthHandler.AlertsPage)
+  http.HandleFunc("/api/alerts", breadthHandler.AlertsAPI)
+  http.HandleFunc("/range", instrumentHandler.RangePage)
+  http.HandleFunc("/notes", instrumentHandler.NotesPage)
 
 	addr := ":6969"
 	log.Printf("UI available at http://localhost%s\n", addr)

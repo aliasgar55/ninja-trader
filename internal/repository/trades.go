@@ -44,6 +44,7 @@ type TradeWithPnL struct {
 	Tag            string
 	BasicIndustry  string
 	Index          string
+	VptScore       float64
 }
 
 func (repo *TradeRepo) GetAllTradesWithPnL() ([]TradeWithPnL, error) {
@@ -58,9 +59,10 @@ func (repo *TradeRepo) GetAllTradesWithPnL() ([]TradeWithPnL, error) {
       CASE WHEN paper_trades.quantity != 0 THEN SIGN(paper_trades.quantity)*((h.c - paper_trades.average_price) / paper_trades.average_price) * 100 ELSE 0 END AS pn_l_pct,
       i.tag AS tag,
 			i.basic_industry AS basic_industry,
-			i."index" AS "index"`).
-		Joins(`JOIN LATERAL (
-      SELECT c FROM historicaldata
+      i."index" AS "index",
+      COALESCE(h.vpt_score, 0) AS vpt_score`).
+    Joins(`JOIN LATERAL (
+      SELECT c, vpt_score FROM historicaldata
       WHERE symbol = paper_trades.trading_symbol
       ORDER BY date DESC LIMIT 1
     ) h ON true`).

@@ -63,6 +63,10 @@ func (r *GTTRepo) UpdateStatus(triggerID int, status string) error {
 	return r.Db.Model(&models.GTTOrder{}).Where("trigger_id = ?", triggerID).Update("status", status).Error
 }
 
+func (r *GTTRepo) Delete(triggerID int) error {
+	return r.Db.Where("trigger_id = ?", triggerID).Delete(&models.GTTOrder{}).Error
+}
+
 func (r *GTTRepo) Update(triggerID int, updates map[string]interface{}) error {
 	return r.Db.Model(&models.GTTOrder{}).Where("trigger_id = ?", triggerID).Updates(updates).Error
 }

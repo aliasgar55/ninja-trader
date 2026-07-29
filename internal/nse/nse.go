@@ -236,13 +236,50 @@ type HistoricalTrade struct {
 	C               float64   `json:"chClosingPrice"`
 	LastTradedPrice float64   `json:"chLastTradedPrice"`
 	Vwap            float64   `json:"vwap"`
-	Volume          int64     `json:"chTotTradedQty"`
+	Volume          uint64    `json:"chTotTradedQty"`
 	TradedValue     float64   `json:"chTotTradedVal"`
 	NoOfTrades      int64     `json:"chTotalTrades"`
 	Symbol          string    `json:"chSymbol"`
 	Date            TradeDate `json:"mtimestamp"`
 	YearHigh        float64   `json:"ch52WeekHighPrice"`
 	YearLow         float64   `json:"ch52WeekLowPrice"`
+}
+
+type SymbolMetaData struct {
+	Symbol       string   `json:"symbol"`
+	ActiveSeries []string `json:"activeSeries"`
+	// CompanyName         string        `json:"companyName"`
+	// DebtSeries          []interface{} `json:"debtSeries"`
+	// IsFNOSec            string        `json:"isFNOSec"`
+	// IsCASec             string        `json:"isCASec"`
+	// IsSLBSec            string        `json:"isSLBSec"`
+	// IsDebtSec           string        `json:"isDebtSec"`
+	// TempSuspendedSeries []interface{} `json:"tempSuspendedSeries"`
+	// IsSuspended         string        `json:"isSuspended"`
+	// IsETFSec            string        `json:"isETFSec"`
+	// IsDelisted          string        `json:"isDelisted"`
+	// Isin                string        `json:"isin"`
+	// IsMunicipalBond     string        `json:"isMunicipalBond"`
+	// IsHybridSymbol      string        `json:"isHybridSymbol"`
+	// MarketType          string        `json:"marketType"`
+	// ParentSymbol        string        `json:"parentSymbol"`
+}
+
+func (metaData SymbolMetaData) GetActiveSeries() (string, error) {
+	activeSeries := metaData.ActiveSeries
+	if len(activeSeries) == 0 {
+		return "", fmt.Errorf("No active series found for symbol: %s", metaData.Symbol)
+
+	}
+	for _, series := range activeSeries {
+		if series == "EQ" {
+			return series, nil
+		} else if series == "BE" {
+			return series, nil
+		}
+	}
+	log.Printf("New Series found %s for symbol: %s", activeSeries[0], metaData.Symbol)
+	return activeSeries[0], nil
 }
 
 func (nseModel HistoricalTrade) MapToDb() *models.Historicaldata {
@@ -262,7 +299,7 @@ func (nseModel HistoricalTrade) MapToDb() *models.Historicaldata {
 	}
 
 	if nseModel.NoOfTrades > 0 {
-		trade.VolumePerTrade = nseModel.Volume / nseModel.NoOfTrades
+		trade.VolumePerTrade = int64(nseModel.Volume) / nseModel.NoOfTrades
 	}
 	return trade
 }
@@ -351,8 +388,6 @@ func GetShortTrades(date time.Time) ([]ShortTrade, error) {
 		log.Printf("Error fetching req %s\n", err)
 		return nil, err
 	}
-	resDump, err := httputil.DumpResponse(res, true)
-	fmt.Println(string(resDump))
 	if res.StatusCode == 404 {
 		return nil, fmt.Errorf("Report for %s is not yet available please try after some time", formattedDate)
 	}
@@ -363,6 +398,44 @@ func GetShortTrades(date time.Time) ([]ShortTrade, error) {
 		return nil, err
 	}
 	return trades, nil
+}
+
+func GetMetaData(symbol string) (*SymbolMetaData, error) {
+
+	url := fmt.Sprintf("https://www.nseindia.com/api/NextApi/apiClient/GetQuoteApi?functionName=getMetaData&symbol=%s", url.QueryEscape(symbol))
+	method := "GET"
+
+	req, err := http.NewRequest(method, url, nil)
+
+	if err != nil {
+		log.Printf("Error creating req %s\n", err)
+		return nil, err
+	}
+
+	req.Header.Add("Accept", "*/*")
+	req.Header.Add("User-Agent", "PostmanRuntime/7.51.1")
+
+	reqDump, err := httputil.DumpRequestOut(req, true)
+	fmt.Println(string(reqDump))
+
+	res, err := nseHTTPClient.Do(req)
+	if err != nil {
+		log.Printf("Error fetching req %s\n", err)
+		return nil, err
+	}
+	if res.StatusCode == 404 {
+		return nil, fmt.Errorf("Error getting metadata for symbol: %s", symbol)
+	}
+	defer res.Body.Close()
+
+	var result SymbolMetaData
+
+	if err = json.NewDecoder(res.Body).Decode(&result); err != nil {
+		log.Printf("Error decoding json response %s, %s \n", err, url)
+		return nil, err
+	}
+	return &result, nil
+
 }
 
 func GetHistoricalData(symbol, series string, from, to time.Time) ([]HistoricalTrade, error) {
@@ -409,6 +482,16 @@ func GetHistoricalData(symbol, series string, from, to time.Time) ([]HistoricalT
 	return comibnedData, nil
 
 }
+
+/*
+func GetBulkDeal(symbol string, from, to time.Time) ([]BulkDeals, error) {
+	var comibnedData []BulkDeals
+	for d := from; !d.After(to); d = d.AddDate(1, 0, 0) {
+		url := fmt.Sprintf("https://www.nseindia.com/api/historicalOR/bulk-block-short-deals?optionType=bulk_deals&symbol=%s&from=26-07-2025&to=26-07-2026", symbol)
+	}
+
+}
+*/
 
 type SymbolChange struct {
 	OldSymbol string

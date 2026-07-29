@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ninja Trader - Notes</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 0; background: #f5f5f5; color: #222; }
+        .nav { display: flex; gap: 0; background: #333; padding: 0 1rem; }
+        .nav a { color: #ccc; text-decoration: none; padding: 0.75rem 1.5rem; }
+        .nav a:hover { background: #444; color: #fff; }
+        .nav a.active { color: #fff; border-bottom: 2px solid #4CAF50; }
+        .content { padding: 1rem 1.5rem; }
+        h1 { margin-bottom: 1rem; font-size: 1.2rem; }
+        .group { margin-bottom: 1.2rem; padding-bottom: 1rem; border-bottom: 2px solid #999; }
+        .group:last-child { border-bottom: none; }
+        .group-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.3rem; }
+        .group-title a { color: #1a73e8; text-decoration: none; }
+        .group-title a:hover { text-decoration: underline; }
+        .note-line { display: flex; align-items: baseline; gap: 0; padding: 0.4rem 0; font-size: 1rem; line-height: 1.5; }
+        .note-meta { min-width: 280px; display: flex; gap: 0.5rem; align-items: baseline; font-size: 0.95rem; }
+        .note-meta .date { font-weight: 600; color: #000; }
+        .note-meta .price { color: #666; font-style: italic; }
+        .note-meta .change { font-weight: 700; }
+        .note-meta .sep { color: #333; }
+        .change-pos { color: #1b5e20; }
+        .change-neg { color: #b71c1c; }
+        .note-text { flex: 1; color: #000; font-size: 1.1rem; padding-left: 1rem; }
+        .empty { color: #888; padding: 2rem; text-align: center; }
+    </style>
+</head>
+<body>
+    {{template "nav" "notes"}}
+    <div class="content">
+        <h1>Notes ({{.Total}})</h1>
+        {{if .Groups}}
+        {{range .Groups}}
+        <div class="group">
+            <div class="group-title"><a href="/instrument?symbol={{urlquery .Symbol}}">{{.Symbol}}</a></div>
+            {{range .Notes}}
+            <div class="note-line">
+                <div class="note-meta">
+                    <span class="date">{{.Date}}</span>
+                    {{if gt .Price 0.0}}<span class="sep">|</span><span class="price">₹{{printf "%.0f" .Price}} → ₹{{printf "%.0f" .CurrentPrice}}</span>{{end}}
+                    {{if ne .ChangePct 0.0}}<span class="sep">|</span><span class="change {{if gt .ChangePct 0.0}}change-pos{{else}}change-neg{{end}}">{{printf "%+.0f" .ChangePct}}%</span>{{end}}
+                </div>
+                <span class="note-text">{{.Text}}</span>
+            </div>
+            {{end}}
+        </div>
+        {{end}}
+        {{else}}
+        <div class="empty">No notes yet.</div>
+        {{end}}
+    </div>
+</body>
+</html>

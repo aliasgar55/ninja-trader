@@ -176,7 +176,7 @@ func (s *InstrumentService) SyncAdjClosePrice(symbol string, minDate, maxDate *t
 			log.Printf("Error getting range for symbol %s\n", symbol)
 			return err
 		}
-		fmt.Println(dateRange)
+		log.Println(dateRange)
 		minDate = &dateRange.MinDate
 		maxDate = &dateRange.MaxDate
 	}
@@ -233,7 +233,6 @@ func (s *InstrumentService) SyncSplitAndDividend(symbol string, minDate, maxDate
 			log.Printf("Error getting range for symbol %s\n", symbol)
 			return err
 		}
-		fmt.Println(dateRange)
 		minDate = &dateRange.MinDate
 		maxDate = &dateRange.MaxDate
 	}
@@ -291,7 +290,6 @@ func (s *InstrumentService) SyncDailyData() {
 		log.Printf("Error running daily sync error: %v\n", err)
 	}
 	for _, instrument := range instruments {
-		fmt.Println(instrument)
 		err := s.ProcessDailyData(instrument.TradingSymbol)
 		if err != nil {
 			instrument.DailySyncError = fmt.Sprint(err)
@@ -325,8 +323,13 @@ func (s *InstrumentService) ProcessDailyData(symbol string) error {
 	}
 	syncEndDate := time.Now()
 	log.Printf("ProcessDailyData [%s] syncing trade history from %s to %s\n", symbol, syncStartDate.Format("2006-01-02"), syncEndDate.Format("2006-01-02"))
+	metaData,err := nse.GetMetaData(symbol)
+	series, err := metaData.GetActiveSeries()
+	if err != nil {
+		return fmt.Errorf("Error syncing symbol: %s, due to series not found, err: %s\n", symbol, err)
+	}
 
-	historicalTrades, err := nse.GetHistoricalData(symbol, "EQ", syncStartDate, syncEndDate)
+	historicalTrades, err := nse.GetHistoricalData(symbol, series, syncStartDate, syncEndDate)
 	if err != nil {
 		log.Printf("ProcessDailyData [%s] error fetching historical trades: %v\n", symbol, err)
 		return err
@@ -346,55 +349,41 @@ func (s *InstrumentService) ProcessDailyData(symbol string) error {
 	}
 	log.Printf("ProcessDailyData [%s] trade history sync complete\n", symbol)
 
-	var processWg sync.WaitGroup
-	errorChan := make(chan error, 5)
-	processWg.Go(func() {
-		log.Printf("ProcessDailyData [%s] updating instrument metadata\n", symbol)
-		nseResp, err := nse.GetNseDetails(symbol, "EQ")
-		if err != nil {
-			log.Printf("Error syncing daily data for symbol nse api failed: %s\n", symbol)
-			errorChan <- err
-			return
-		}
-		instrument, err := s.InstruRepo.GetInstrumentBySymbol(symbol)
-		if err != nil {
-			log.Printf("Error fetching marketCap, and priceBand during daily sync, getInstrumentFailed: %s\n", symbol)
-			errorChan <- err
-			return
-		}
-		instrument.MarketCap = nseResp.GetMarketCap() / oneCrore
-		instrument.PriceBand = nseResp.GetPriceBand()
-		instrument.BasicIndustry = nseResp.GetSecInfo().BasicIndustry
-		instrument.Index = nseResp.GetSecInfo().Index
-		instrument.NeedsAdjsutment = nseResp.GetNeedsAdjustment()
-		if instrument.NeedsAdjsutment {
-			fmt.Println("%s needs adjusment")
-		}
-		s.InstruRepo.UpdateInstrument(instrument)
-		log.Printf("ProcessDailyData [%s] instrument metadata updated, marketCap: %.2f, active: %v\n", symbol, instrument.MarketCap, instrument.Active)
-		historicalTrade, err := s.InstruRepo.GetHistoricalDataBySymbolAndDate(symbol, nseResp.GetLastUpdateTime().Truncate(24*time.Hour))
-		if err == nil {
-			historicalTrade.DeliveryPercentage = nseResp.GetDeliveryToTradePer()
-			s.InstruRepo.UpdateHistoricalTrade(historicalTrade)
-			log.Printf("ProcessDailyData [%s] delivery percentage updated: %.2f\n", symbol, historicalTrade.DeliveryPercentage)
-		} else {
-			log.Printf("ProcessDailyData [%s] save insert to db failed: %v\n", symbol, err)
-			errorChan <- err
-			return
-		}
-	})
-
-	processWg.Wait()
-	close(errorChan)
-	for err := range errorChan {
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
+	log.Printf("ProcessDailyData [%s] updating instrument metadata\n", symbol)
+	nseResp, err := nse.GetNseDetails(symbol, series)
+	if err != nil {
+		log.Printf("Error syncing daily data for symbol nse api failed: %s\n", symbol)
+		return err
 	}
+	instrument, err := s.InstruRepo.GetInstrumentBySymbol(symbol)
+	if err != nil {
+		log.Printf("Error fetching marketCap, and priceBand during daily sync, getInstrumentFailed: %s\n", symbol)
+		return err
+	}
+	instrument.MarketCap = nseResp.GetMarketCap() / oneCrore
+	instrument.PriceBand = nseResp.GetPriceBand()
+	instrument.BasicIndustry = nseResp.GetSecInfo().BasicIndustry
+	instrument.Index = nseResp.GetSecInfo().Index
+	instrument.NeedsAdjsutment = nseResp.GetNeedsAdjustment()
+	if instrument.NeedsAdjsutment {
+		// do something
+	}
+	s.InstruRepo.UpdateInstrument(instrument)
+	log.Printf("ProcessDailyData [%s] instrument metadata updated, marketCap: %.2f, active: %v\n", symbol, instrument.MarketCap, instrument.Active)
+	historicalTrade, err := s.InstruRepo.GetHistoricalDataBySymbolAndDate(symbol, nseResp.GetLastUpdateTime().Truncate(24*time.Hour))
+	if err == nil {
+		historicalTrade.DeliveryPercentage = nseResp.GetDeliveryToTradePer()
+		if instrument.MarketCap > 0 {
+			historicalTrade.DeliveryValue = float64(historicalTrade.Volume) * historicalTrade.C * float64(historicalTrade.DeliveryPercentage) / 100.0 / (instrument.MarketCap * oneCrore) * 100
+		}
+		log.Printf("ProcessDailyData [%s] delivery percentage updated: %.2f, delivery value: %.4f%%\n", symbol, historicalTrade.DeliveryPercentage, historicalTrade.DeliveryValue)
+	}
+	s.InstruRepo.UpdateHistoricalTrade(historicalTrade)
+
 	log.Printf("ProcessDailyData completed for %s\n", symbol)
 
 	if err := s.ComputeSignals(symbol); err != nil {
+		fmt.Println("Calling compute signal")
 		log.Printf("ProcessDailyData [%s] error computing signals: %v\n", symbol, err)
 	}
 
@@ -442,15 +431,19 @@ func (s *InstrumentService) ComputeSignals(symbol string) error {
 
 	// Compute VPT MA20 (simple moving average of VolumePerTrade over 20 days)
 	vptMa20 := make([]float64, len(data))
+	volumeMa20 := make([]float64, len(data))
 	for i := range data {
 		if i < 19 {
 			continue
 		}
 		var sum float64
+		var volumeSum uint64
 		for j := i - 19; j <= i; j++ {
 			sum += float64(data[j].VolumePerTrade)
+			volumeSum += data[j].Volume
 		}
 		vptMa20[i] = sum / 20.0
+		volumeMa20[i] = float64(volumeSum) / 20.0
 	}
 
 	// Compute rolling z-scores using 3-year calendar window
@@ -473,24 +466,43 @@ func (s *InstrumentService) ComputeSignals(symbol string) error {
 			return d.AdjustedClosePrice
 		})
 
-		// Compute VPT MA20 z-score over window (only valid entries where i >= 19)
-		validStart := startIdx
-		if validStart < 19 {
-			validStart = 19
-		}
-		vptZ[i] = zScoreSlice(vptMa20, validStart, i)
+    // Compute VPT MA20 z-score over window (only valid entries where i >= 19)
+    validStart := startIdx
+    if validStart < 19 {
+      validStart = 19
+    }
+    vptZ[i] = zScoreSlice(vptMa20, validStart, i)
 	}
 
-	// Compute sigmoid VPT score and divergence
-	vptScore := make([]float64, len(data))
-	divergence := make([]float64, len(data))
-	for i := range data {
-		if i < 19 {
-			continue
-		}
-		vptScore[i] = 100.0 / (1.0 + math.Exp(-vptZ[i]))
-		divergence[i] = vptZ[i] - priceZ[i]
-	}
+  // Compute VPT score as percentage of rolling 3-year max VPT MA20, and divergence
+  vptScore := make([]float64, len(data))
+  divergence := make([]float64, len(data))
+  for i := range data {
+    if i < 19 {
+      continue
+    }
+    // Find rolling window start
+    windowStart := data[i].Date.AddDate(0, 0, -rollingWindowDays)
+    startIdx := i
+    for startIdx > 0 && data[startIdx-1].Date.After(windowStart) {
+      startIdx--
+    }
+    validStart := startIdx
+    if validStart < 19 {
+      validStart = 19
+    }
+    // Find max VPT MA20 in the window
+    maxVpt := 0.0
+    for j := validStart; j <= i; j++ {
+      if vptMa20[j] > maxVpt {
+        maxVpt = vptMa20[j]
+      }
+    }
+    if maxVpt > 0 {
+      vptScore[i] = (vptMa20[i] / maxVpt) * 100.0
+    }
+    divergence[i] = vptZ[i] - priceZ[i]
+  }
 
 	// Compute 3-year rolling max divergence
 	divMax3y := make([]float64, len(data))
@@ -523,6 +535,7 @@ func (s *InstrumentService) ComputeSignals(symbol string) error {
 			VptScore:        vptScore[i],
 			Divergence:      divergence[i],
 			DivergenceMax3y: divMax3y[i],
+			VolumeMa20: volumeMa20[i],
 		})
 	}
 
@@ -578,5 +591,5 @@ func zScoreSlice(slice []float64, start, end int) float64 {
 	if variance <= 0 {
 		return 0
 	}
-	return (slice[end] - mean) / math.Sqrt(variance)
+  return (slice[end] - mean) / math.Sqrt(variance)
 }

@@ -135,6 +135,7 @@
                     {{if .Index}}<div class="meta-item"><span class="meta-label">Index</span><span class="meta-value">{{.Index}}</span></div>{{end}}
                     {{if ne .Holding 0}}<div class="meta-item"><span class="meta-label">Holding</span><span class="meta-value">{{.Holding}}</span></div>{{end}}
                     {{if gt .DeliveryPercentage 0.0}}<div class="meta-item"><span class="meta-label">Delivery %</span><span class="meta-value">{{printf "%.2f" .DeliveryPercentage}}%</span></div>{{end}}
+                    {{if gt .PctFrom52WLow 0.0}}<div class="meta-item"><span class="meta-label">From 52W Low</span><span class="meta-value">{{printf "%.0f" .PctFrom52WLow}}%</span></div>{{end}}
                     <div class="meta-item">
                         <span class="meta-label">Tag</span>
                         <div class="tag-dropdown" id="tagDropdown">
@@ -151,8 +152,8 @@
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.6rem">
                 <div style="display:flex;align-items:center;gap:0.6rem">
-                    {{if .PrevSymbol}}<a id="prevLink" href="/instrument?symbol={{.PrevSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}">← {{.PrevSymbol}}</a>{{end}}
-                    {{if .NextSymbol}}<a id="nextLink" href="/instrument?symbol={{.NextSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}">{{.NextSymbol}} →</a>{{end}}
+            {{if .PrevSymbol}}<a id="prevLink" href="/instrument?symbol={{.PrevSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}">← {{.PrevSymbol}}</a>{{end}}
+            {{if .NextSymbol}}<a id="nextLink" href="/instrument?symbol={{.NextSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}">{{.NextSymbol}} →</a>{{end}}
                 </div>
                 <div style="display:flex;align-items:center;gap:0.6rem">
                     <form method="POST" action="/instrument/watchlist" style="margin:0">
@@ -170,7 +171,10 @@
                     <button class="tag-history-btn" onclick="openTagHistoryDrawer()">Tag History</button>
                     <button class="gtt-btn" onclick="openGTTDrawer()">GTT Order</button>
                     <button class="tag-history-btn" onclick="openNotesDrawer()">Notes</button>
+                    <button class="tag-history-btn" onclick="openAlertDrawer()">Alert</button>
+                    <button class="tag-history-btn" id="bookmarkBtn" onclick="saveBookmark()">📌 Bookmark</button>
                     <a href="https://www.tradingview.com/chart/?symbol=NSE:{{.Symbol}}" target="_blank" rel="noopener noreferrer" class="tradingview-btn">TradingView</a>
+                    <a href="https://www.screener.in/company/{{.Symbol}}/" target="_blank" rel="noopener noreferrer" class="tradingview-btn" style="border-color:#4CAF50;color:#4CAF50;">Screener</a>
                 </div>
             </div>
         </div>
@@ -179,6 +183,7 @@
         {{if eq .Msg "adj_sync_started"}}<div class="msg">Adjusted close price sync started in background.</div>{{end}}
         {{if eq .Msg "daily_sync_started"}}<div class="msg">Daily data sync started in background.</div>{{end}}
         {{if eq .Msg "split_dividend_sync_started"}}<div class="msg">Split and dividend sync started in background.</div>{{end}}
+        {{if eq .Msg "price_adjusted"}}<div class="msg">Adjusted close prices updated successfully.</div>{{end}}
 
         <div class="admin-section">
             <button class="admin-toggle" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'flex':'none'">⚙ Admin</button>
@@ -200,22 +205,30 @@
                     <label>From</label>
                     <input type="date" name="from" value="2020-01-01" required>
                     <label>To</label>
-                    <input type="date" name="to" required value="2026-03-21">
+                    <input type="date" name="to" required id="syncHistoryTo">
                     <button type="submit">Sync Trade History</button>
+                </form>
+                <form class="sync-form" method="POST" action="/instrument/adjust-price">
+                    <input type="hidden" name="symbol" value="{{.Symbol}}">
+                    <label>Ratio</label>
+                    <input type="number" name="ratio" step="any" min="0.001" placeholder="e.g. 2.0" required>
+                    <label>Before Date</label>
+                    <input type="date" name="date" required>
+                    <button type="submit">Adjust Price</button>
                 </form>
             </div>
         </div>
 
 
         <div class="filters" id="chartFilters">
-            <a id="period-1" href="/instrument?symbol={{.Symbol}}&period=1m{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "1m"}}active{{end}}">1M</a>
-            <a id="period-2" href="/instrument?symbol={{.Symbol}}&period=6m{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "6m"}}active{{end}}">6M</a>
-            <a id="period-3" href="/instrument?symbol={{.Symbol}}&period=1y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "1y"}}active{{end}}">1Yr</a>
-            <a id="period-4" href="/instrument?symbol={{.Symbol}}&period=3y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "3y"}}active{{end}}">3Yr</a>
-            <a id="period-5" href="/instrument?symbol={{.Symbol}}&period=5y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "5y"}}active{{end}}">5Yr</a>
-            <a id="period-6" href="/instrument?symbol={{.Symbol}}&period=10y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "10y"}}active{{end}}">10Yr</a>
-            <a id="period-0" href="/instrument?symbol={{.Symbol}}&period=max{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" class="{{if eq .Period "max"}}active{{end}}">Max</a>
-            <span style="margin-left:auto;font-size:1.1rem;color:#555;">VPT: <strong id="vptScoreValue">—</strong> | Div: <strong id="divScoreValue">—</strong></span>
+<a id="period-1" href="/instrument?symbol={{.Symbol}}&period=1m{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}" class="{{if eq .Period "1m"}}active{{end}}">1M</a>
+<a id="period-2" href="/instrument?symbol={{.Symbol}}&period=6m{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}" class="{{if eq .Period "6m"}}active{{end}}">6M</a>
+<a id="period-3" href="/instrument?symbol={{.Symbol}}&period=1y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}" class="{{if eq .Period "1y"}}active{{end}}">1Yr</a>
+<a id="period-4" href="/instrument?symbol={{.Symbol}}&period=3y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}" class="{{if eq .Period "3y"}}active{{end}}">3Yr</a>
+<a id="period-5" href="/instrument?symbol={{.Symbol}}&period=5y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}" class="{{if eq .Period "5y"}}active{{end}}">5Yr</a>
+<a id="period-6" href="/instrument?symbol={{.Symbol}}&period=10y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}" class="{{if eq .Period "10y"}}active{{end}}">10Yr</a>
+<a id="period-0" href="/instrument?symbol={{.Symbol}}&period=max{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}" class="{{if eq .Period "max"}}active{{end}}">Max</a>
+            <span style="margin-left:auto;font-size:1.1rem;color:#555;">VPT: <strong id="vptScoreValue">—</strong> | Div: <strong id="divScoreValue">—</strong> | Vol: <strong id="volRatioValue">—</strong></span>
         </div>
 
         <div class="charts-row">
@@ -230,6 +243,18 @@
                 <canvas id="volumeTradesChart"></canvas>
             </div>
 
+            <div class="chart-container" style="max-height:250px;">
+                <canvas id="vptGapChart" style="height:220px;"></canvas>
+            </div>
+
+            <div class="chart-container" style="max-height:150px;">
+                <canvas id="volRatioChart" style="height:120px;"></canvas>
+            </div>
+
+            <div class="chart-container" style="max-height:150px;">
+                <canvas id="recoveryChart" style="height:120px;"></canvas>
+            </div>
+
             <div class="chart-container">
                 <h3>Short Selling Quantity</h3>
                 <canvas id="shortsChart"></canvas>
@@ -238,10 +263,79 @@
         </div>
     </div>
     <script>
+        // Set sync history end date to today
+        (function() {
+            const el = document.getElementById('syncHistoryTo');
+            if (el) { const d = new Date(); el.value = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+        })();
+        function saveBookmark() {
+            const url = window.location.pathname + window.location.search;
+            fetch('/api/last-url/save', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'url='+encodeURIComponent(url)})
+                .then(() => { document.getElementById('bookmarkBtn').textContent = '✓ Saved'; setTimeout(() => { document.getElementById('bookmarkBtn').textContent = '📌 Bookmark'; }, 1500); });
+        }
+        function openAlertDrawer() {
+            document.getElementById('alertOverlay').classList.add('open');
+            document.getElementById('alertDrawer').classList.add('open');
+            loadAlertList();
+        }
+        function closeAlertDrawer() {
+            document.getElementById('alertOverlay').classList.remove('open');
+            document.getElementById('alertDrawer').classList.remove('open');
+        }
+        function loadAlertList() {
+            fetch('/api/kite-alerts?symbol={{.Symbol}}').then(r => r.json()).then(alerts => {
+                const el = document.getElementById('alertListContent');
+                if (!alerts || alerts.length === 0) {
+                    el.innerHTML = '<span style="color:#999;font-size:0.85rem">No alerts for this symbol</span>';
+                    return;
+                }
+                el.innerHTML = alerts.map(a => `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid #eee;">
+                    <span>${a.Operator} ₹${a.TriggerValue.toFixed(2)} <span style="font-size:0.75rem;color:#888;">(${a.Status})</span></span>
+                    <button onclick="deleteKiteAlert('${a.AlertID}')" style="background:#e53935;color:#fff;border:none;border-radius:4px;padding:0.2rem 0.6rem;cursor:pointer;font-size:0.8rem;">Delete</button>
+                </div>`).join('');
+            });
+        }
+        function submitAlert(e) {
+            e.preventDefault();
+            const operator = document.getElementById('alertOperator').value;
+            const price = document.getElementById('alertPrice').value;
+            if (!price) return;
+            fetch('/kite-alerts/create', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'symbol={{.Symbol}}&operator=' + encodeURIComponent(operator) + '&value=' + price
+            }).then(r => r.json()).then(d => {
+                const msg = document.getElementById('alertFormMsg');
+                if (d.ok) {
+                    msg.innerHTML = '<span style="color:#2e7d32">✓ Alert created</span>';
+                    document.getElementById('alertPrice').value = '';
+                    loadAlertList();
+                    setTimeout(() => { msg.textContent = ''; }, 2000);
+                } else {
+                    msg.innerHTML = '<span style="color:#c62828">Error creating alert</span>';
+                }
+            }).catch(() => { document.getElementById('alertFormMsg').innerHTML = '<span style="color:#c62828">Error</span>'; });
+        }
+        function deleteKiteAlert(alertID) {
+            fetch('/kite-alerts/delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'alert_id=' + alertID
+            }).then(r => r.json()).then(d => {
+                if (d.ok) loadAlertList();
+            });
+        }
         function goToSymbol(e) {
             e.preventDefault();
             const val = document.getElementById('symbolInput').value.trim().toUpperCase();
-            if (val) window.location.href = '/instrument?symbol=' + encodeURIComponent(val);
+            if (val) {
+                let url = '/instrument?symbol=' + encodeURIComponent(val);
+                {{if .FromRange}}url += '&from=range';{{end}}
+                {{if .Sort}}url += '&sort={{.Sort}}&order={{.Order}}';{{end}}
+                {{if .WatchlistOnly}}url += '&watchlist=1';{{end}}
+                url += '&date={{.Date}}';
+                window.location.href = url;
+            }
             return false;
         }
 
@@ -310,6 +404,7 @@
 
         document.addEventListener('keydown', e => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.key === 'n' || e.key === 'N') { e.preventDefault(); openNotesDrawer(); return; }
             if (document.getElementById('notesDrawer').classList.contains('open')) return;
             const menu = document.getElementById('tagMenu');
             const tagOpen = menu.classList.contains('open');
@@ -352,6 +447,7 @@
             if (e.key === 'ArrowLeft') document.getElementById('prevLink')?.click();
             if (e.key === 'ArrowRight') document.getElementById('nextLink')?.click();
             if (e.key === 'w' || e.key === 'W') document.getElementById('watchlistBtn')?.click();
+            if (e.key === 'b' || e.key === 'B') { e.preventDefault(); saveBookmark(); return; }
             if (e.key === 'g' || e.key === 'G') { e.preventDefault(); document.getElementById('gttDrawer').classList.contains('open') ? closeGTTDrawer() : openGTTDrawer(); return; }
             if (['1','2','3','4','5','6'].includes(e.key)) document.getElementById('period-' + e.key)?.click();
             if (e.key === '0') document.getElementById('period-0')?.click();
@@ -362,7 +458,7 @@
         const symbol = "{{.Symbol}}";
         const period = "{{.Period}}";
         const periodParam = period ? '&period=' + encodeURIComponent(period) : '';
-        let priceChart = null, shortsChart = null, volumeTradesChart = null;
+        let priceChart = null, shortsChart = null, volumeTradesChart = null, volRatioChart = null, recoveryChart = null, vptGapChart = null;
 
         const crosshairPlugin = {
             id: 'syncCrosshair',
@@ -373,11 +469,11 @@
                     if (elements.length) {
                         const idx = elements[0].index;
                         const label = chart.data.labels[idx];
-                        [priceChart, shortsChart, volumeTradesChart].filter(c => c && c !== chart).forEach(other => syncTooltip(other, label));
+                        [priceChart, shortsChart, volumeTradesChart, volRatioChart, recoveryChart, vptGapChart].filter(c => c && c !== chart).forEach(other => syncTooltip(other, label));
                     }
                 }
                 if (evt.type === 'mouseout') {
-                    const others = [priceChart, shortsChart, volumeTradesChart].filter(c => c && c !== chart);
+                    const others = [priceChart, shortsChart, volumeTradesChart, volRatioChart, recoveryChart, vptGapChart].filter(c => c && c !== chart);
                     others.forEach(other => {
                         other.tooltip.setActiveElements([], { x: 0, y: 0 });
                         other.setActiveElements([]);
@@ -419,6 +515,7 @@
 
 
         Chart.register(crosshairPlugin);
+        Chart.defaults.animation = false;
 
         const sharedInteraction = { mode: 'index', intersect: false };
 
@@ -488,6 +585,11 @@
             } else if (lastDiv !== undefined) {
                 document.getElementById('divScoreValue').textContent = lastDiv.toFixed(2);
             }
+            const lastVol = priceData.volume ? priceData.volume[priceData.volume.length - 1] : 0;
+            const lastVolMa20 = priceData.volumeMa20 ? priceData.volumeMa20[priceData.volumeMa20.length - 1] : 0;
+            if (lastVolMa20 > 0) {
+                document.getElementById('volRatioValue').textContent = (lastVol / lastVolMa20).toFixed(1) + 'x';
+            }
             console.log(priceData)
 
             priceChart = new Chart(document.getElementById('priceChart'), {
@@ -502,12 +604,27 @@
                         fill: true,
                         tension: 0.3,
                         pointRadius: 1,
-                        yAxisID: 'y',
-                        hidden: true
+                        yAxisID: 'y'
                     }, {
                         type: 'line',
                         label: 'Adj. Close Price (₹)',
                         data: priceData.adjClose,
+                        borderColor: '#1a73e8',
+                        backgroundColor: 'rgba(26,115,232,0.08)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 1,
+                        yAxisID: 'y',
+                        hidden: true
+                    }, {
+                        type: 'line',
+                        label: 'Adj Close 20 MA',
+                        data: priceData.adjClose.map((_, i, arr) => {
+                            if (i < 19) return null;
+                            let sum = 0;
+                            for (let j = i - 19; j <= i; j++) sum += arr[j];
+                            return sum / 20;
+                        }),
                         borderColor: '#1a73e8',
                         backgroundColor: 'rgba(26,115,232,0.08)',
                         fill: true,
@@ -518,8 +635,8 @@
                         type: 'bar',
                         label: 'Volume/Trade',
                         data: priceData.volumePerTrade,
-                        borderColor: '#FB8C00',
-                        backgroundColor: 'rgba(251,140,0,0.4)',
+                        borderColor: '#E65100',
+                        backgroundColor: 'rgba(230,81,0,0.6)',
                         yAxisID: 'y1'
                     }, {
                         type: 'line',
@@ -540,7 +657,8 @@
                         borderDash: [5, 5],
                         pointRadius: 0,
                         fill: false,
-                        yAxisID: 'y3'
+                        yAxisID: 'y3',
+                        hidden: true
                     }, {
                         type: 'line',
                         label: 'VPT Score (JS)',
@@ -570,8 +688,7 @@
                         borderDash: [3, 3],
                         pointRadius: 0,
                         fill: false,
-                        yAxisID: 'y3',
-                        hidden: true
+                        yAxisID: 'y3'
                     }, {
                         type: 'line',
                         label: 'DB VPT Score',
@@ -611,8 +728,8 @@
                     plugins: { legend: { display: true }, tooltip: { mode: 'index', intersect: false } },
                     scales: {
                         x: { title: { display: true, text: 'Date' } },
-                        y: { title: { display: true, text: 'Adj. Close Price (₹)' }, position: 'left', beginAtZero: false },
-                        y1: { title: { display: true, text: 'Volume/Trade' }, position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } },
+                        y: { title: { display: true, text: 'Adj. Close Price (₹)' }, position: 'right', beginAtZero: false, grid: { drawOnChartArea: false } },
+                        y1: { title: { display: true, text: 'Volume/Trade' }, position: 'left', beginAtZero: true },
                         y2: { title: { display: true, text: 'VPT Score' }, position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, display: false },
                         y3: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, display: false }
                     }
@@ -621,24 +738,139 @@
 
             document.getElementById('chartFilters').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-            volumeTradesChart = new Chart(document.getElementById('volumeTradesChart'), {
+            requestAnimationFrame(() => {
+            // Volume Ratio chart (volume / volume_ma20)
+            const volRatioData = priceData.volume.map((v, i) => {
+                const ma = priceData.volumeMa20[i];
+                return ma > 0 ? v / ma : null;
+            });
+            volRatioChart = new Chart(document.getElementById('volRatioChart'), {
                 type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Volume',
-                        data: priceData.volume,
-                        backgroundColor: 'rgba(0,137,123,0.5)',
+                        label: 'Vol / 20MA',
+                        data: volRatioData,
+                        backgroundColor: volRatioData.map(v => v >= 2 ? 'rgba(46,125,50,0.85)' : 'rgba(100,181,246,0.6)'),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: sharedInteraction,
+                    plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                    scales: {
+                        x: { display: false },
+                        y: { beginAtZero: true, title: { display: true, text: 'Vol Ratio' } }
+                    }
+                }
+            });
+
+            // Recovery from day's low chart: (close - low) / low * 100
+            const recoveryData = priceData.values.map((c, i) => {
+                const low = priceData.low[i];
+                return low > 0 ? (c - low) / low * 100 : null;
+            });
+            recoveryChart = new Chart(document.getElementById('recoveryChart'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Recovery from Low %',
+                        data: recoveryData,
+                        backgroundColor: recoveryData.map((v, i) => {
+                            const prevClose = i > 0 ? priceData.values[i-1] : null;
+                            const isBelowPrev = prevClose !== null && priceData.values[i] < prevClose;
+                            return (v >= 2 && isBelowPrev) ? 'rgba(46,125,50,0.85)' : 'rgba(100,181,246,0.6)';
+                        }),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: sharedInteraction,
+                    plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                    scales: {
+                        x: { display: false },
+                        y: { beginAtZero: true, title: { display: true, text: 'Recovery %' } }
+                    }
+                }
+            });
+
+            // Helper: moving average
+            function movingAvg(data, window) {
+                return data.map((_, i) => {
+                    if (i < window - 1) return null;
+                    let sum = 0;
+                    for (let j = i - window + 1; j <= i; j++) sum += data[j];
+                    return sum / window;
+                });
+            }
+
+            // VPT Gap chart: normalized volume - normalized trades
+            const volMa20 = movingAvg(priceData.volume, 20);
+            const tradesMa20 = movingAvg(priceData.noOfTrades, 20);
+            const vptGapData = priceData.volume.map((v, i) => {
+                if (volMa20[i] === null || tradesMa20[i] === null || volMa20[i] === 0 || tradesMa20[i] === 0) return null;
+                const normVol = v / volMa20[i];
+                const normTrades = priceData.noOfTrades[i] / tradesMa20[i];
+                return normVol - normTrades;
+            });
+            const vptGapMa20 = movingAvg(vptGapData.map(v => v === null ? 0 : v), 20);
+            vptGapChart = new Chart(document.getElementById('vptGapChart'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Vol vs Trades Gap',
+                        data: vptGapData,
+                        backgroundColor: vptGapData.map(v => v > 0 ? 'rgba(46,125,50,0.7)' : 'rgba(229,57,53,0.7)'),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: sharedInteraction,
+                    plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                    scales: {
+                        x: { display: false },
+                        y: { title: { display: true, text: 'VPT Gap' } }
+                    }
+                }
+            });
+
+            // Smooth volume and trades with 20-day moving average
+            const volumeSmooth = movingAvg(priceData.volume, 20);
+            const tradesSmooth = movingAvg(priceData.noOfTrades, 20);
+
+            volumeTradesChart = new Chart(document.getElementById('volumeTradesChart'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Volume (20d MA)',
+                        data: volumeSmooth,
+                        borderColor: 'rgba(0,137,123,0.8)',
+                        backgroundColor: 'rgba(0,137,123,0.1)',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: true,
                         yAxisID: 'y'
                     }, {
-                        label: 'No. of Trades',
-                        data: priceData.noOfTrades,
-                        backgroundColor: 'rgba(244,81,30,0.5)',
+                        label: 'No. of Trades (20d MA)',
+                        data: tradesSmooth,
+                        borderColor: 'rgba(244,81,30,0.8)',
+                        backgroundColor: 'rgba(244,81,30,0.1)',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: true,
                         yAxisID: 'y1'
                     }, {
-                        type: 'line',
-                        label: 'Delivery %',
-                        data: priceData.deliveryPercentage,
+                        label: 'Del Val / MCap %',
+                        data: priceData.deliveryValue,
                         borderColor: '#7B1FA2',
                         backgroundColor: 'rgba(123,31,162,0.1)',
                         borderWidth: 1.5,
@@ -657,7 +889,7 @@
                         x: { title: { display: true, text: 'Date' } },
                         y: { type: 'logarithmic', title: { display: true, text: 'Volume' }, position: 'left' },
                         y1: { type: 'logarithmic', title: { display: true, text: 'No. of Trades' }, position: 'right', grid: { drawOnChartArea: false } },
-                        y2: { display: false, min: 0, max: 100 }
+                        y2: { title: { display: true, text: 'Del Val / MCap %' }, position: 'right', min: 0, max: 4, grid: { drawOnChartArea: false } }
                     }
                 }
             });
@@ -688,6 +920,7 @@
                     }
                 }
             });
+            }); // end requestAnimationFrame
         })();
     </script>
     <div id="toast" class="toast"></div>
@@ -817,9 +1050,38 @@
             <div class="drawer-section">
                 <h3>Add Note</h3>
                 <form id="noteForm" onsubmit="submitNote(event)" style="display:flex;flex-direction:column;gap:0.5rem">
-                    <textarea name="text" id="noteText" rows="3" placeholder="Write a note..." required style="padding:0.5rem;border:1px solid #ccc;border-radius:4px;resize:vertical;font-family:inherit"></textarea>
+                    <textarea name="text" id="noteText" rows="3" required style="padding:0.5rem;border:1px solid #ccc;border-radius:4px;resize:vertical;font-family:inherit" onkeydown="noteKeydown(event, this)"></textarea>
                     <button type="submit" style="align-self:flex-start;padding:0.4rem 1rem;background:#1a73e8;color:#fff;border:none;border-radius:4px;cursor:pointer">Save</button>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Drawer -->
+    <div id="alertOverlay" class="drawer-overlay" onclick="closeAlertDrawer()"></div>
+    <div id="alertDrawer" class="drawer">
+        <div class="drawer-header">
+            <h2>Alerts — {{.Symbol}}</h2>
+            <button class="drawer-close" onclick="closeAlertDrawer()">&times;</button>
+        </div>
+        <div class="drawer-body">
+            <div class="drawer-section">
+                <h3>Create Alert</h3>
+                <form id="alertForm" onsubmit="submitAlert(event)" style="display:flex;flex-direction:column;gap:0.5rem">
+                    <div style="display:flex;gap:0.5rem;">
+                        <select id="alertOperator" style="padding:0.4rem;border:1px solid #ccc;border-radius:4px;flex:1;">
+                            <option value="<="><= (price drops to)</option>
+                            <option value=">=">>=  (price rises to)</option>
+                        </select>
+                    </div>
+                    <input type="number" id="alertPrice" step="0.05" placeholder="Trigger price" required style="padding:0.4rem;border:1px solid #ccc;border-radius:4px;">
+                    <button type="submit" style="align-self:flex-start;padding:0.4rem 1rem;background:#4CAF50;color:#fff;border:none;border-radius:4px;cursor:pointer">Create Alert</button>
+                </form>
+                <div id="alertFormMsg" style="margin-top:0.5rem;font-size:0.85rem;"></div>
+            </div>
+            <div class="drawer-section">
+                <h3>Active Alerts</h3>
+                <div id="alertListContent"><span style="color:#999;font-size:0.85rem">Loading...</span></div>
             </div>
         </div>
     </div>
@@ -864,6 +1126,7 @@
                 closeGTTDrawer();
                 closeTagHistoryDrawer();
                 closeNotesDrawer();
+                closeAlertDrawer();
             }
         });
 
@@ -1056,11 +1319,13 @@
             document.getElementById('notesOverlay').classList.add('open');
             document.getElementById('notesDrawer').classList.add('open');
             loadNotes();
+            document.getElementById('noteText').focus();
         }
 
         function closeNotesDrawer() {
             document.getElementById('notesOverlay').classList.remove('open');
             document.getElementById('notesDrawer').classList.remove('open');
+            document.activeElement.blur();
         }
 
         function loadNotes() {
@@ -1090,6 +1355,13 @@
                 .catch(() => {
                     container.innerHTML = '<span style="color:#c62828;font-size:0.85rem">Failed to load notes.</span>';
                 });
+        }
+
+        function noteKeydown(e, el) {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                document.getElementById('noteForm').requestSubmit();
+            }
         }
 
         function submitNote(e) {

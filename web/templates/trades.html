@@ -45,6 +45,7 @@
                     <th>Tag</th>
                     <th>Industry</th>
                     <th>Index</th>
+                    <th>VPT Score</th>
                     <th>Quantity</th>
                     <th>Avg Price (₹)</th>
                     <th>Current Price (₹)</th>
@@ -61,6 +62,7 @@
                     <td>{{.Tag}}</td>
                     <td>{{.BasicIndustry}}</td>
                     <td>{{.Index}}</td>
+                    <td>{{if ne .VptScore 0.0}}{{printf "%.1f" .VptScore}}{{end}}</td>
                     <td>{{.Quantity}}</td>
                     <td>{{printf "%.2f" .AveragePrice}}</td>
                     <td>{{printf "%.2f" .CurrentPrice}}</td>

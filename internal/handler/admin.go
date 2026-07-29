@@ -1,16 +1,24 @@
 package handler
 
 import (
+	"context"
+	"encoding/json"
 	"html/template"
 	"log"
 	"net/http"
+	models "ninja-trader/internal/model"
 	"ninja-trader/internal/service"
+	"ninja-trader/internal/ticker"
 	"sync"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type AdminHandler struct {
 	Service *service.InstrumentService
+	Ticker  *ticker.Service
+	Db      *gorm.DB
 	Tmpl    *template.Template
 }
 
@@ -125,5 +133,62 @@ func (h *AdminHandler) ComputeSignals(w http.ResponseWriter, r *http.Request) {
 		wg.Wait()
 		log.Println("ComputeSignals backfill completed")
 	}()
-	http.Redirect(w, r, "/admin?msg=compute_signals_started", http.StatusSeeOther)
+  http.Redirect(w, r, "/admin?msg=compute_signals_started", http.StatusSeeOther)
+}
+
+func (h *AdminHandler) TickerStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"running": h.Ticker.IsRunning()})
+}
+
+func (h *AdminHandler) TickerToggle(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if h.Ticker.IsRunning() {
+		h.Ticker.Stop()
+		h.setSetting("ticker_enabled", "false")
+	} else {
+		h.Ticker.Start(context.Background())
+		h.setSetting("ticker_enabled", "true")
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"running": h.Ticker.IsRunning()})
+}
+
+func (h *AdminHandler) setSetting(key, value string) {
+	var setting models.AppSetting
+	result := h.Db.Where("key = ?", key).First(&setting)
+	if result.Error != nil {
+		h.Db.Create(&models.AppSetting{Key: key, Value: value})
+		return
+	}
+	h.Db.Model(&setting).Update("value", value)
+}
+
+func (h *AdminHandler) GetSetting(key string) string {
+	var setting models.AppSetting
+	if err := h.Db.Where("key = ?", key).First(&setting).Error; err != nil {
+		return ""
+	}
+	return setting.Value
+}
+
+func (h *AdminHandler) SaveLastURL(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	url := r.FormValue("url")
+	if url != "" {
+		h.setSetting("last_url", url)
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *AdminHandler) GetLastURL(w http.ResponseWriter, r *http.Request) {
+	url := h.GetSetting("last_url")
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"url": url})
 }

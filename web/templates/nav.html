@@ -5,7 +5,12 @@
     <a href="/trades"{{if eq . "trades"}} class="active"{{end}}>Trades</a>
     <a href="/shorts"{{if eq . "shorts"}} class="active"{{end}}>Short Trades</a>
     <a href="/gtt"{{if eq . "gtt"}} class="active"{{end}}>GTT Orders</a>
+    <a href="/kite-alerts"{{if eq . "kite-alerts"}} class="active"{{end}}>Kite Alerts</a>
     <a href="/breadth"{{if eq . "breadth"}} class="active"{{end}}>Breadth</a>
+    <a href="/alerts"{{if eq . "alerts"}} class="active"{{end}}>Alerts</a>
+    <a href="/range"{{if eq . "range"}} class="active"{{end}}>Range</a>
+    <a href="/notes"{{if eq . "notes"}} class="active"{{end}}>Notes</a>
+    <a href="#" id="resumeLink" style="display:none;color:#ff9800;">Resume</a>
     <a href="/admin"{{if eq . "admin"}} class="active"{{end}}>Admin</a>
     <span id="kite-status" style="margin-left:auto;padding:0.75rem 1rem;font-size:0.85rem;"></span>
 </nav>
@@ -17,6 +22,14 @@ fetch('/api/auth/status').then(r=>r.json()).then(d=>{
         el.style.color='#4CAF50';
     }else{
         el.innerHTML='<a href="/auth/login" style="color:#ff9800;text-decoration:none;">Login to Kite</a>';
+    }
+});
+// Show resume link from saved URL
+fetch('/api/last-url').then(r=>r.json()).then(d=>{
+    if (d.url) {
+        const el = document.getElementById('resumeLink');
+        el.href = d.url;
+        el.style.display = '';
     }
 });
 </script>

@@ -17,6 +17,12 @@
         .btn-primary { background: #4CAF50; color: #fff; }
         .btn-primary:hover { background: #45a049; }
         .msg { padding: 0.5rem 1rem; background: #d4edda; color: #155724; border-radius: 4px; margin-bottom: 1rem; display: inline-block; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; border-radius: 26px; transition: 0.3s; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.3s; }
+        .switch input:checked + .slider { background: #4CAF50; }
+        .switch input:checked + .slider:before { transform: translateX(24px); }
     </style>
 </head>
 <body>
@@ -37,7 +43,20 @@
             <div class="msg" style="background:#f8d7da;color:#721c24;">Both old and new symbol are required.</div>
         {{else if eq .Msg "compute_signals_started"}}
             <div class="msg">Compute Signals backfill started in background.</div>
+        {{else if eq .Msg "kite_logged_out"}}
+            <div class="msg">Kite session logged out.</div>
         {{end}}
+        <div class="card">
+            <h3>WebSocket Ticker</h3>
+            <p>Control the live market data connection.</p>
+            <div style="display:flex;align-items:center;gap:1rem;">
+                <label class="switch">
+                    <input type="checkbox" id="tickerToggle">
+                    <span class="slider"></span>
+                </label>
+                <span id="tickerStatus" style="font-weight:600;">—</span>
+            </div>
+        </div>
         <div class="card">
             <h3>Sync Instruments</h3>
             <p>Fetch all instruments from Kite and process them.</p>
@@ -83,6 +102,31 @@
                 <button class="btn btn-primary" type="submit">Run Compute</button>
             </form>
         </div>
+        <div class="card">
+            <h3>Logout Kite</h3>
+            <p>Clear the Kite access token and end the session.</p>
+            <form method="POST" action="/auth/logout">
+                <button class="btn btn-primary" type="submit" style="background:#e53935;">Logout</button>
+            </form>
+        </div>
     </div>
+    <script>
+        const toggle = document.getElementById('tickerToggle');
+        const status = document.getElementById('tickerStatus');
+
+        function updateStatus(running) {
+            toggle.checked = running;
+            status.textContent = running ? 'Connected' : 'Disconnected';
+            status.style.color = running ? '#4CAF50' : '#e53935';
+        }
+
+        fetch('/api/ticker/status').then(r => r.json()).then(d => updateStatus(d.running));
+
+        toggle.addEventListener('change', () => {
+            fetch('/api/ticker/toggle', { method: 'POST' })
+                .then(r => r.json())
+                .then(d => updateStatus(d.running));
+        });
+    </script>
 </body>
 </html>

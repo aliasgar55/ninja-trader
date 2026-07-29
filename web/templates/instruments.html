@@ -33,52 +33,78 @@
     {{template "nav" "instruments"}}
     <div class="content">
         <h1>Instruments ({{len .Instruments}})</h1>
-        <form class="search-box" method="GET" action="/">
-            <input type="text" name="q" placeholder="Search by symbol..." value="{{.Query}}" autofocus>
-            <button type="submit">Search</button>
-            {{if .Query}}<a href="/" style="padding:0.5rem 1rem;line-height:2;color:#666;">Clear</a>{{end}}
+        <form class="search-box" method="GET" action="/" style="justify-content:space-between;">
+            <div style="display:flex;gap:0.5rem;align-items:center;">
+                <a href="#" onclick="changeDate(-1);return false" style="padding:0.3rem 0.6rem;background:#eee;border-radius:4px;text-decoration:none;color:#333">←</a>
+                <input type="date" name="date" id="dateInput" value="{{.Date}}" max="{{.Today}}" style="padding:0.5rem;border:1px solid #ccc;border-radius:4px;">
+                <a href="#" onclick="changeDate(1);return false" style="padding:0.3rem 0.6rem;background:#eee;border-radius:4px;text-decoration:none;color:#333">→</a>
+            </div>
+            <div style="display:flex;gap:0.5rem;align-items:center;">
+                <input type="text" name="q" placeholder="Search by symbol..." value="{{.Query}}">
+                {{if .Sort}}<input type="hidden" name="sort" value="{{.Sort}}">{{end}}
+                {{if .Order}}<input type="hidden" name="order" value="{{.Order}}">{{end}}
+                <button type="submit">Search</button>
+                {{if .Query}}<a href="/?date={{.Date}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}" style="padding:0.5rem 1rem;line-height:2;color:#666;">Clear</a>{{end}}
+            </div>
         </form>
         <table>
             <thead>
                 <tr>
-                    <th><a href="/?sort=symbol&order={{if and (eq .Sort "symbol") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Symbol {{if eq .Sort "symbol"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
-                    <th><a href="/?sort=market_cap&order={{if and (eq .Sort "market_cap") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Market Cap {{if eq .Sort "market_cap"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
-                    <th><a href="/?sort=industry&order={{if and (eq .Sort "industry") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Industry {{if eq .Sort "industry"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
-                    <th><a href="/?sort=index&order={{if and (eq .Sort "index") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Index {{if eq .Sort "index"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
-                    <th><a href="/?sort=price_band&order={{if and (eq .Sort "price_band") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Price Band {{if eq .Sort "price_band"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
-                    <th><a href="/?sort=delivery_pct&order={{if and (eq .Sort "delivery_pct") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Delivery % {{if eq .Sort "delivery_pct"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
-                    <th><a href="/?sort=vpt&order={{if and (eq .Sort "vpt") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">VPT {{if eq .Sort "vpt"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
-                    <th><a href="/?sort=vpt_score&order={{if and (eq .Sort "vpt_score") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">VPT Score {{if eq .Sort "vpt_score"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
-                    <th><a href="/?sort=divergence&order={{if and (eq .Sort "divergence") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Divergence {{if eq .Sort "divergence"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
-                    <th><a href="/?sort=tag&order={{if and (eq .Sort "tag") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Tag {{if eq .Sort "tag"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
-                    <th><a href="/?sort=holding&order={{if and (eq .Sort "holding") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Holding {{if eq .Sort "holding"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th>#</th>
+                    <th><a href="/?sort=symbol&order={{if and (eq .Sort "symbol") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">Symbol {{if eq .Sort "symbol"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/?sort=market_cap&order={{if and (eq .Sort "market_cap") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">Market Cap {{if eq .Sort "market_cap"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/?sort=industry&order={{if and (eq .Sort "industry") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">Industry {{if eq .Sort "industry"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/?sort=index&order={{if and (eq .Sort "index") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">Index {{if eq .Sort "index"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/?sort=delivery_value&order={{if and (eq .Sort "delivery_value") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">Del Val {{if eq .Sort "delivery_value"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/?sort=vol_ratio&order={{if and (eq .Sort "vol_ratio") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">Vol Ratio {{if eq .Sort "vol_ratio"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/?sort=range_3m&order={{if and (eq .Sort "range_3m") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">3M Range {{if eq .Sort "range_3m"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/?sort=pct_from_52w_low&order={{if and (eq .Sort "pct_from_52w_low") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">52W Low % {{if eq .Sort "pct_from_52w_low"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/?sort=vpt_score&order={{if and (eq .Sort "vpt_score") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">VPT Score {{if eq .Sort "vpt_score"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/?sort=divergence&order={{if and (eq .Sort "divergence") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">Divergence {{if eq .Sort "divergence"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/?sort=tag&order={{if and (eq .Sort "tag") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">Tag {{if eq .Sort "tag"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/?sort=holding&order={{if and (eq .Sort "holding") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">Holding {{if eq .Sort "holding"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
                     <th>Adj.</th>
-                    <th><a href="/?sort=active&order={{if and (eq .Sort "active") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Active {{if eq .Sort "active"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
                 </tr>
             </thead>
             <tbody>
-                {{range .Instruments}}
+                {{range $i, $inst := .Instruments}}
                 <tr>
-                    <td><a class="symbol-link" href="/instrument?symbol={{.TradingSymbol}}{{if $.Sort}}&sort={{$.Sort}}&order={{$.Order}}{{end}}">{{.TradingSymbol}}</a></td>
+                    <td style="color:#999;font-size:0.85rem">{{add $i 1}}</td>
+                    <td><a class="symbol-link" href="/instrument?symbol={{$inst.TradingSymbol}}{{if $.Sort}}&sort={{$.Sort}}&order={{$.Order}}{{end}}&date={{$.Date}}">{{$inst.TradingSymbol}}</a></td>
                     <td>{{printf "%.0f" .MarketCap}}</td>
                     <td>{{.BasicIndustry}}</td>
                     <td>{{.Index}}</td>
-                    <td>{{.PriceBand}}</td>
-                    <td>{{if gt .DeliveryPercentage 0.0}}{{printf "%.2f" .DeliveryPercentage}}%{{end}}</td>
-                    <td>{{.VolumePerTrade}}</td>
+                    <td>{{if gt .DeliveryValue 0.0}}{{printf "%.3f" .DeliveryValue}}%{{end}}</td>
+                    <td>{{if gt .VolRatio 0.0}}{{printf "%.1f" .VolRatio}}x{{end}}</td>
+                    <td>{{if gt .Range3M 0.0}}{{printf "%.1f" .Range3M}}%{{end}}</td>
+                    <td>{{if gt .PctFrom52WLow 0.0}}{{printf "%.0f" .PctFrom52WLow}}%{{end}}</td>
                     <td>{{if ne .VptScore 0.0}}{{printf "%.1f" .VptScore}}{{end}}</td>
                     <td>{{if ne .Divergence 0.0}}{{printf "%.2f" .Divergence}}{{end}}</td>
                     <td>{{.Tag}}</td>
                     <td>{{if gt .Holding 0}}{{.Holding}}{{end}}</td>
                     <td>{{if .NeedsAdjsutment}}<span style="display:inline-block;width:8px;height:8px;background:#e53935;border-radius:50%"></span>{{end}}</td>
-                    <td>
-                        {{if .Active}}<span class="badge active-badge">Yes</span>
-                        {{else}}<span class="badge inactive-badge">No</span>{{end}}
-                    </td>
                 </tr>
                 {{end}}
             </tbody>
         </table>
     </div>
+    <script>
+    function changeDate(delta) {
+        const input = document.getElementById('dateInput');
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        let d = input.value ? new Date(input.value) : new Date(today);
+        d.setDate(d.getDate() + delta);
+        if (d > today) return;
+        const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+        input.value = y + '-' + m + '-' + day;
+        input.form.submit();
+    }
+    document.addEventListener('keydown', e => {
+        if (e.target.tagName === 'INPUT') return;
+        if (e.key === 'ArrowLeft') { e.preventDefault(); changeDate(-1); }
+        if (e.key === 'ArrowRight') { e.preventDefault(); changeDate(1); }
+    });
+    </script>
 </body>
 </html>

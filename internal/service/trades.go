@@ -66,7 +66,6 @@ func (s *TradeService) Trade(symbol string, quantity uint, tradeType models.Trad
 
 	}
 
-	fmt.Printf("Trade price: %f\n", trade.AveragePrice)
 
 	log := &models.PaperTradeLog{
 		InstrumentID:  instrument.ID,

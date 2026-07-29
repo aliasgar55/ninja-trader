@@ -70,7 +70,7 @@ type Historicaldata struct {
 	AlphaVantageWeeklyAdjustedClose float64
 	LastTradedPrice                 float64
 	Vwap                            float64
-	Volume                          int64
+	Volume                          uint64
 	NoOfTrades                      int64
 	Symbol                          string    `gorm:"index:,priority:1,unique,composite:idx_historicaldata_symbol_date"`
 	Date                            time.Time `gorm:"index:,priority:2,unique,composite:idx_historicaldata_symbol_date"`
@@ -80,9 +80,11 @@ type Historicaldata struct {
 	DeliveryPercentage              float32
 	AdjustementFactor               float64
 	VptMa20                         float64
+	VolumeMa20                      float64
 	VptScore                        float64
 	Divergence                      float64
 	DivergenceMax3y                 float64
+	DeliveryValue                   float64
 }
 
 type Shorts struct {
@@ -102,6 +104,7 @@ type AdjustedCloseUpdate struct {
 type SignalUpdate struct {
 	ID              uint
 	VptMa20         float64
+	VolumeMa20      float64
 	VptScore        float64
 	Divergence      float64
 	DivergenceMax3y float64
@@ -115,3 +118,11 @@ type Note struct {
 	Text          string
 }
 
+type AlertLog struct {
+	gorm.Model
+	AlertType     string    `gorm:"index"` // "PRICE" or "VOLUME"
+	TradingSymbol string    `gorm:"index"`
+	Price         float64
+	Message       string
+	AlertTime     time.Time `gorm:"index"`
+}

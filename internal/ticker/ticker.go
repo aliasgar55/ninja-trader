@@ -35,6 +35,15 @@ type BreadthSnapshot struct {
 	Count int64
 }
 
+// AlertEntry records a triggered alert.
+type AlertEntry struct {
+	Time     time.Time
+	Type     string // "PRICE" or "VOLUME"
+	Symbol   string
+	Price    float64
+	Message  string
+}
+
 // Service manages the Kite WebSocket ticker connection.
 type Service struct {
 	kiteClient *kite.Client
@@ -50,11 +59,11 @@ type Service struct {
 	mu     sync.Mutex
 	cancel context.CancelFunc
 
-	// Breadth tracking: count of instruments up 2%+ from day's low
-	breadthFlags   sync.Map     // map[uint32]bool
-	breadthCount   atomic.Int64
-	breadthHistory []BreadthSnapshot
-	breadthMu      sync.Mutex
+  // Breadth tracking: count of instruments up 2%+ from day's low
+  breadthFlags   sync.Map     // map[uint32]bool
+  breadthCount   atomic.Int64
+  breadthHistory []BreadthSnapshot
+  breadthMu      sync.Mutex
 }
 
 // New creates a new ticker service.
@@ -109,12 +118,14 @@ func (s *Service) Start(ctx context.Context) {
 		if sig, ok := signals[inst.TradingSymbol]; ok {
 			info.VptScore = sig[0]
 			info.Divergence = sig[1]
+			info.Volume20Ma = sig[2]
 		}
 		s.instruments[token] = info
 	}
 
 	s.alerts = []Alert{
-    NewPriceAndVolumeAlert(0.02, 1.0, s.instruments),
+		NewPriceAlert(0.05, 1.0, s.instruments),
+		NewVolumeAlert(5.0, 1.5, s.instruments),
 	}
 
 	s.startWebSocket(ctx, accessToken)
@@ -187,6 +198,13 @@ func (s *Service) Stop() {
 	log.Println("[ticker] stopped")
 }
 
+// IsRunning returns true if the ticker is currently connected.
+func (s *Service) IsRunning() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.ticker != nil
+}
+
 // GetPrice returns the latest tick data for an instrument token.
 func (s *Service) GetPrice(token uint32) *TickData {
 	val, ok := s.prices.Load(token)
@@ -229,10 +247,12 @@ func (s *Service) handleTick(tick kitemodels.Tick) {
 		s.breadthCount.Add(-1)
 	}
 
-	// Run alerts
-	for _, alert := range s.alerts {
-		alert.Check(tick.InstrumentToken, td)
-	}
+  // Run alerts
+  for _, alert := range s.alerts {
+    if entry := alert.Check(tick.InstrumentToken, td); entry != nil {
+      s.AddAlert(*entry)
+    }
+  }
 }
 
 // SymbolForToken returns the trading symbol for a given instrument token.
@@ -275,5 +295,39 @@ func (s *Service) GetBreadthHistory() []BreadthSnapshot {
 	defer s.breadthMu.Unlock()
 	result := make([]BreadthSnapshot, len(s.breadthHistory))
 	copy(result, s.breadthHistory)
+	return result
+}
+
+// AddAlert persists an alert entry to DB.
+func (s *Service) AddAlert(entry AlertEntry) {
+	s.repo.Db.Create(&models.AlertLog{
+		AlertType:     entry.Type,
+		TradingSymbol: entry.Symbol,
+		Price:         entry.Price,
+		Message:       entry.Message,
+		AlertTime:     entry.Time,
+	})
+}
+
+// GetAlertHistory returns all alert entries from DB for today.
+func (s *Service) GetAlertHistory() []AlertEntry {
+	return s.GetAlertHistoryForDate(time.Now().UTC().Truncate(24 * time.Hour))
+}
+
+// GetAlertHistoryForDate returns alert entries from DB for a specific date.
+func (s *Service) GetAlertHistoryForDate(day time.Time) []AlertEntry {
+	var logs []models.AlertLog
+	nextDay := day.Add(24 * time.Hour)
+	s.repo.Db.Where("alert_time >= ? AND alert_time < ?", day, nextDay).Order("alert_time ASC").Find(&logs)
+	result := make([]AlertEntry, len(logs))
+	for i, l := range logs {
+		result[i] = AlertEntry{
+			Time:    l.AlertTime,
+			Type:    l.AlertType,
+			Symbol:  l.TradingSymbol,
+			Price:   l.Price,
+			Message: l.Message,
+		}
+	}
 	return result
 }

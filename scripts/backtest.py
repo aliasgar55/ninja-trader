@@ -55,8 +55,9 @@ def compute_signals(df, window='1095D'):
     vpt_std = df['vpt_ma20'].rolling(window).std()
     df['vpt_z'] = (df['vpt_ma20'] - vpt_mean) / vpt_std
 
-    # Sigmoid: z-score -> 0-100
-    df['vpt_score'] = 100 / (1 + np.exp(-df['vpt_z']))
+    # VPT score: current VPT MA20 as percentage of rolling 3-year max
+    rolling_max = df['vpt_ma20'].rolling(window).max()
+    df['vpt_score'] = (df['vpt_ma20'] / rolling_max) * 100
 
     # Divergence: VPT z-score minus price z-score
     df['divergence'] = df['vpt_z'] - df['price_z']

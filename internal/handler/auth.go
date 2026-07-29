@@ -92,6 +92,21 @@ func (h *AuthHandler) Status(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	h.userID = ""
+	h.tokenExpiry = time.Time{}
+	h.KiteClient.SetAccessToken("")
+	h.setSetting("kite_access_token", "")
+	h.setSetting("kite_user_id", "")
+	h.setSetting("kite_token_expiry", "")
+	log.Println("Kite session logged out")
+	http.Redirect(w, r, "/admin?msg=kite_logged_out", http.StatusSeeOther)
+}
+
 func (h *AuthHandler) LoadSession() {
 	if h.Db == nil {
 		return
