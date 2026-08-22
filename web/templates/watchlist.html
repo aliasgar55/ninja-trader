@@ -51,6 +51,7 @@
                     <th><a href="/watchlist?sort=vpt_score&order={{if and (eq .Sort "vpt_score") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">VPT Score {{if eq .Sort "vpt_score"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
                     <th><a href="/watchlist?sort=divergence&order={{if and (eq .Sort "divergence") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Divergence {{if eq .Sort "divergence"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
                     <th><a href="/watchlist?sort=tag&order={{if and (eq .Sort "tag") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Tag {{if eq .Sort "tag"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/watchlist?sort=pct_change&order={{if and (eq .Sort "pct_change") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">%Change {{if eq .Sort "pct_change"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
                     <th><a href="/watchlist?sort=holding&order={{if and (eq .Sort "holding") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}">Holding {{if eq .Sort "holding"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
                 </tr>
             </thead>
@@ -68,6 +69,7 @@
                     <td>{{if ne .VptScore 0.0}}{{printf "%.1f" .VptScore}}{{end}}</td>
                     <td>{{if ne .Divergence 0.0}}{{printf "%.2f" .Divergence}}{{end}}</td>
                     <td>{{.Tag}}</td>
+                    <td style="{{if gt .PctChange 0.0}}color:green{{else if lt .PctChange 0.0}}color:red{{end}}">{{if ne .PctChange 0.0}}{{printf "%+.1f" .PctChange}}%{{end}}</td>
                     <td>{{if gt .Holding 0}}{{.Holding}}{{end}}</td>
                 </tr>
                 {{end}}

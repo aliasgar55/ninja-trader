@@ -46,6 +46,7 @@ type InstrumentWithHolding struct {
 	VolRatio           float64
 	Range3M            float64 `gorm:"column:range_3m"`
 	PctFrom52WLow     float64 `gorm:"column:pct_from_52w_low"`
+	PctChange          float64 `gorm:"column:pct_change"`
 }
 
 func (repo *InstrumentRepo) withHoldingQuery() *gorm.DB {
@@ -76,7 +77,8 @@ var allowedSortColumns = map[string]string{
 	"delivery_value": "delivery_value",
   "vol_ratio":      "vol_ratio",
   "range_3m":       "range_3m",
-  "pct_from_52w_low": "pct_from_52w_low",
+	"pct_from_52w_low": "pct_from_52w_low",
+	"pct_change":       "pct_change",
 }
 
 func buildSortOrder(sort, order string) string {
@@ -128,14 +130,22 @@ func (repo *InstrumentRepo) GetAllInstrumentsWithHolding(query, sort, order stri
 
 func (repo *InstrumentRepo) GetWatchlistInstrumentsWithHolding(query, sort, order string) ([]InstrumentWithHolding, error) {
 	var results []InstrumentWithHolding
-	q := repo.withHoldingQuery().Where("instruments.active = true AND instruments.watchlist = true AND instruments.is_nav = false")
+	q := repo.withHoldingQuery().
+		Joins(`LEFT JOIN LATERAL (
+			SELECT adjusted_close_price AS wl_close
+			FROM historicaldata
+			WHERE symbol = instruments.trading_symbol AND date >= instruments.watch_list_date
+			ORDER BY date ASC LIMIT 1
+		) wl ON true`).
+		Where("instruments.active = true AND instruments.watchlist = true AND instruments.is_nav = false")
+	q = q.Select("instruments.*, COALESCE(pt.quantity, 0) AS holding, COALESCE(hd.delivery_percentage, 0) AS delivery_percentage, COALESCE(hd.volume_per_trade, 0) AS volume_per_trade, COALESCE(hd.vpt_score, 0) AS vpt_score, COALESCE(hd.divergence, 0) AS divergence, COALESCE(hd.delivery_value, 0) AS delivery_value, CASE WHEN COALESCE(hd.volume_ma20, 0) > 0 THEN hd.volume::float / hd.volume_ma20 ELSE 0 END AS vol_ratio, COALESCE(r3.range_pct, 0) AS range_3m, CASE WHEN COALESCE(hd.year_low, 0) > 0 THEN (hd.adjusted_close_price - hd.year_low) / hd.year_low * 100 ELSE 0 END AS pct_from_52w_low, CASE WHEN COALESCE(wl.wl_close, 0) > 0 THEN (hd.adjusted_close_price - wl.wl_close) / wl.wl_close * 100 ELSE 0 END AS pct_change")
 	if query != "" {
 		q = q.Where("instruments.trading_symbol ILIKE ?", "%"+query+"%")
 	}
 	sortOrder := buildSortOrder(sort, order)
-  if sort == "" {
-    sortOrder = "instruments.watch_list_date DESC NULLS LAST, instruments.trading_symbol ASC"
-  }
+	if sort == "" {
+		sortOrder = "instruments.watch_list_date DESC NULLS LAST, instruments.trading_symbol ASC"
+	}
 	err := q.Order(sortOrder).Scan(&results).Error
 	return results, err
 }

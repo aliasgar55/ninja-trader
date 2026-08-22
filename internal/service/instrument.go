@@ -366,7 +366,7 @@ func (s *InstrumentService) ProcessDailyData(symbol string) error {
 	instrument.Index = nseResp.GetSecInfo().Index
 	instrument.NeedsAdjsutment = nseResp.GetNeedsAdjustment()
 	if instrument.NeedsAdjsutment {
-		// do something
+		// todo: implement auto adjustment
 	}
 	s.InstruRepo.UpdateInstrument(instrument)
 	log.Printf("ProcessDailyData [%s] instrument metadata updated, marketCap: %.2f, active: %v\n", symbol, instrument.MarketCap, instrument.Active)
