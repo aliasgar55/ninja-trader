@@ -2,6 +2,7 @@ package nse
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"log"
 	"net/http"
@@ -492,6 +493,247 @@ func GetBulkDeal(symbol string, from, to time.Time) ([]BulkDeals, error) {
 
 }
 */
+
+type InsideTradesRoot struct {
+	Data []InsideTrade `json:"data"`
+}
+
+type InsideTrade struct {
+	AppId             string `json:"appId"`
+	BroadcastDateTime string `json:"broadcastDateTime"`
+	CompanyName       string `json:"companyName"`
+	Diff              string `json:"diff"`
+	Exchdisstime      string `json:"exchdisstime"`
+	Ixbrl             string `json:"ixbrl"`
+	IxbrlFileSize     string `json:"ixbrlFileSize"`
+	PrevAppId         string `json:"prevAppId"`
+	Regulation        string `json:"regulation"`
+	RevisionRemark    string `json:"revisionRemark"`
+	Symbol            string `json:"symbol"`
+	TypeOfSubmission  string `json:"typeOfSubmission"`
+	XbrlFileSize      string `json:"xbrlFileSize"`
+	XmlFileName       string `json:"xmlFileName"`
+}
+
+func GetInsideTrades(from, to time.Time) (*[]InsideTrade, error) {
+	// loop while adding 1 year to "from" until it is greater than "to" nse api only return 1 year data at max
+	combinedResult := []InsideTrade{}
+	for d := from; !d.After(to); d = d.AddDate(1, 0, 0) {
+		dateFrom := d.Format("02-01-2006")
+		toCurr := d.AddDate(1, 0, 0)
+		if toCurr.After(to) {
+			toCurr = to
+		}
+		toStr := toCurr.Format("02-01-2006")
+		url := fmt.Sprintf("https://www.nseindia.com/api/corporates-pit-gg?index=equities&from_date=%s&to_date=%s", dateFrom, toStr)
+		method := "GET"
+		req, err := http.NewRequest(method, url, nil)
+
+		if err != nil {
+			return nil, err
+		}
+		res, err := nseHTTPClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer res.Body.Close()
+		var result InsideTradesRoot
+		if err = json.NewDecoder(res.Body).Decode(&result); err != nil {
+			return nil, err
+		}
+		combinedResult = append(combinedResult, result.Data...)
+
+	}
+	return &combinedResult, nil
+}
+
+type InsideTradeDetails struct {
+	XMLName      xml.Name `xml:"xbrl"`
+	Text         string   `xml:",chardata"`
+	InBseCo      string   `xml:"in-bse-co,attr"`
+	InBseCoRoles string   `xml:"in-bse-co-roles,attr"`
+	Xbrldt       string   `xml:"xbrldt,attr"`
+	Nonnum       string   `xml:"nonnum,attr"`
+	InBseCoType  string   `xml:"in-bse-co-type,attr"`
+	Link         string   `xml:"link,attr"`
+	Net          string   `xml:"net,attr"`
+	Num          string   `xml:"num,attr"`
+	Xlink        string   `xml:"xlink,attr"`
+	Iso4217      string   `xml:"iso4217,attr"`
+	Negated      string   `xml:"negated,attr"`
+	Xbrldi       string   `xml:"xbrldi,attr"`
+	Xbrli        string   `xml:"xbrli,attr"`
+	Xl           string   `xml:"xl,attr"`
+	SchemaRef    struct {
+		Text string `xml:",chardata"`
+		Type string `xml:"type,attr"`
+		Href string `xml:"href,attr"`
+	} `xml:"schemaRef"`
+	Context []struct {
+		Text   string `xml:",chardata"`
+		ID     string `xml:"id,attr"`
+		Entity struct {
+			Text       string `xml:",chardata"`
+			Identifier struct {
+				Text   string `xml:",chardata"`
+				Scheme string `xml:"scheme,attr"`
+			} `xml:"identifier"`
+		} `xml:"entity"`
+		Period struct {
+			Text    string `xml:",chardata"`
+			Instant string `xml:"instant"`
+		} `xml:"period"`
+		Scenario struct {
+			Text        string `xml:",chardata"`
+			TypedMember struct {
+				Text                                         string `xml:",chardata"`
+				Dimension                                    string `xml:"dimension,attr"`
+				ChangeInHoldingOfSecuritiesOfPromotersDomain string `xml:"ChangeInHoldingOfSecuritiesOfPromotersDomain"`
+			} `xml:"typedMember"`
+		} `xml:"scenario"`
+	} `xml:"context"`
+	Unit []struct {
+		Text    string `xml:",chardata"`
+		ID      string `xml:"id,attr"`
+		Measure string `xml:"measure"`
+	} `xml:"unit"`
+	ScripCode struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"ScripCode"`
+	Symbol struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"Symbol"`
+	MSEISymbol struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"MSEISymbol"`
+	NameOfTheCompany struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"NameOfTheCompany"`
+	NameOfTheSignatory struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"NameOfTheSignatory"`
+	DesignationOfSignatory struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"DesignationOfSignatory"`
+	Place struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"Place"`
+	DateOfFiling struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"DateOfFiling"`
+	ISINCode struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"ISINCode"`
+	DisclosureUnderRegulation struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"DisclosureUnderRegulation"`
+	RevisedFilling struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"RevisedFilling"`
+	TypeOfInstrument []struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"TypeOfInstrument"`
+	CategoryOfPerson []struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"CategoryOfPerson"`
+	NameOfThePerson []struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"NameOfThePerson"`
+	SecuritiesHeldPriorToAcquisitionOrDisposalNumberOfSecurity []struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+		UnitRef    string `xml:"unitRef,attr"`
+		Decimals   string `xml:"decimals,attr"`
+	} `xml:"SecuritiesHeldPriorToAcquisitionOrDisposalNumberOfSecurity"`
+	SecuritiesHeldPriorToAcquisitionOrDisposalPercentageOfShareholding []struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+		UnitRef    string `xml:"unitRef,attr"`
+		Decimals   string `xml:"decimals,attr"`
+	} `xml:"SecuritiesHeldPriorToAcquisitionOrDisposalPercentageOfShareholding"`
+	SecuritiesAcquiredOrDisposedNumberOfSecurity []struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+		UnitRef    string `xml:"unitRef,attr"`
+		Decimals   string `xml:"decimals,attr"`
+	} `xml:"SecuritiesAcquiredOrDisposedNumberOfSecurity"`
+	SecuritiesAcquiredOrDisposedValueOfSecurity []struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+		UnitRef    string `xml:"unitRef,attr"`
+		Decimals   string `xml:"decimals,attr"`
+	} `xml:"SecuritiesAcquiredOrDisposedValueOfSecurity"`
+	SecuritiesAcquiredOrDisposedTransactionType []struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"SecuritiesAcquiredOrDisposedTransactionType"`
+	SecuritiesHeldPostAcquistionOrDisposalNumberOfSecurity []struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+		UnitRef    string `xml:"unitRef,attr"`
+		Decimals   string `xml:"decimals,attr"`
+	} `xml:"SecuritiesHeldPostAcquistionOrDisposalNumberOfSecurity"`
+	SecuritiesHeldPostAcquistionOrDisposalPercentageOfShareholding []struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+		UnitRef    string `xml:"unitRef,attr"`
+		Decimals   string `xml:"decimals,attr"`
+	} `xml:"SecuritiesHeldPostAcquistionOrDisposalPercentageOfShareholding"`
+	DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyFromDate []struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyFromDate"`
+	DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyToDate []struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyToDate"`
+	ModeOfAcquisitionOrDisposal []struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"ModeOfAcquisitionOrDisposal"`
+	DateOfIntimationToCompany []struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"DateOfIntimationToCompany"`
+	ExchangeOnWhichTheTradeWasExecuted []struct {
+		Text       string `xml:",chardata"`
+		ContextRef string `xml:"contextRef,attr"`
+	} `xml:"ExchangeOnWhichTheTradeWasExecuted"`
+}
+
+func GetInsideTradeDetails(xmlUrl string) (*InsideTradeDetails, error) {
+
+	method := "GET"
+	req, err := http.NewRequest(method, xmlUrl, nil)
+	if err != nil {
+		return nil, err
+	}
+	res, err := nseHTTPClient.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	defer res.Body.Close()
+	var result InsideTradeDetails
+	if err = xml.NewDecoder(res.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
 
 type SymbolChange struct {
 	OldSymbol string
