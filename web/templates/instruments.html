@@ -61,9 +61,8 @@
                     <th><a href="/?sort=pct_from_52w_low&order={{if and (eq .Sort "pct_from_52w_low") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">52W Low % {{if eq .Sort "pct_from_52w_low"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
                     <th><a href="/?sort=vpt_score&order={{if and (eq .Sort "vpt_score") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">VPT Score {{if eq .Sort "vpt_score"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
                     <th><a href="/?sort=divergence&order={{if and (eq .Sort "divergence") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">Divergence {{if eq .Sort "divergence"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
-                    <th><a href="/?sort=tag&order={{if and (eq .Sort "tag") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">Tag {{if eq .Sort "tag"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
-                    <th><a href="/?sort=holding&order={{if and (eq .Sort "holding") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">Holding {{if eq .Sort "holding"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
-                    <th>Adj.</th>
+                    <th><a href="/?sort=needs_adjustment&order={{if and (eq .Sort "needs_adjustment") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">Adj. {{if eq .Sort "needs_adjustment"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
+                    <th><a href="/?sort=is_fno_sec&order={{if and (eq .Sort "is_fno_sec") (eq .Order "asc")}}desc{{else}}asc{{end}}{{if .Query}}&q={{.Query}}{{end}}&date={{.Date}}">FNO {{if eq .Sort "is_fno_sec"}}{{if eq .Order "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</a></th>
                 </tr>
             </thead>
             <tbody>
@@ -80,9 +79,8 @@
                     <td>{{if gt .PctFrom52WLow 0.0}}{{printf "%.0f" .PctFrom52WLow}}%{{end}}</td>
                     <td>{{if ne .VptScore 0.0}}{{printf "%.1f" .VptScore}}{{end}}</td>
                     <td>{{if ne .Divergence 0.0}}{{printf "%.2f" .Divergence}}{{end}}</td>
-                    <td>{{.Tag}}</td>
-                    <td>{{if gt .Holding 0}}{{.Holding}}{{end}}</td>
                     <td>{{if .NeedsAdjsutment}}<span style="display:inline-block;width:8px;height:8px;background:#e53935;border-radius:50%"></span>{{end}}</td>
+                    <td>{{if .IsFnoSec}}<span class="badge active-badge">F&O</span>{{end}}</td>
                 </tr>
                 {{end}}
             </tbody>

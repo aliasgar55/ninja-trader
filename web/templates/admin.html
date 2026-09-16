@@ -10,114 +10,237 @@
         .nav a { color: #ccc; text-decoration: none; padding: 0.75rem 1.5rem; }
         .nav a:hover { background: #444; color: #fff; }
         .nav a.active { color: #fff; border-bottom: 2px solid #4CAF50; }
-        .content { padding: 2rem; }
-        .card { background: #fff; border-radius: 8px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 500px; margin-bottom: 1rem; }
-        .card h3 { margin-top: 0; }
-        .btn { padding: 0.5rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; }
+        .content { padding: 2rem 2.5rem; max-width: 1100px; }
+
+        .page-header { margin-bottom: 2rem; padding-bottom: 1.25rem; border-bottom: 1px solid #e0e0e0; }
+        .page-header h1 { margin: 0; font-size: 1.5rem; font-weight: 700; color: #222; }
+        .page-header p { margin: 0.4rem 0 0; color: #777; font-size: 0.85rem; }
+
+        .msg { padding: 0.6rem 1rem; border-radius: 4px; margin-bottom: 1.5rem; font-size: 0.9rem; }
+        .msg-success { background: #d4edda; color: #155724; }
+        .msg-error { background: #f8d7da; color: #721c24; }
+
+        .section { margin-bottom: 2rem; }
+        .section-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.2px; color: #999; font-weight: 700; margin-bottom: 0.75rem; padding-left: 2px; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 0.75rem; }
+
+        .card { background: #fff; border-radius: 8px; padding: 1.25rem 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+        .card-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem; }
+
+        .card-title { font-size: 0.95rem; font-weight: 600; margin: 0; color: #222; }
+        .card-desc { font-size: 0.82rem; color: #888; margin: 0 0 1rem; line-height: 1.4; }
+        .card-actions { margin-top: auto; }
+
+        .btn { padding: 0.45rem 1.25rem; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: background 0.15s; }
         .btn-primary { background: #4CAF50; color: #fff; }
         .btn-primary:hover { background: #45a049; }
-        .msg { padding: 0.5rem 1rem; background: #d4edda; color: #155724; border-radius: 4px; margin-bottom: 1rem; display: inline-block; }
-        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .btn-danger { background: #e53935; color: #fff; }
+        .btn-danger:hover { background: #c62828; }
+
+        .form-row { display: flex; gap: 0.6rem; align-items: flex-end; flex-wrap: wrap; }
+        .form-group { display: flex; flex-direction: column; gap: 0.15rem; }
+        .form-group label { font-size: 0.72rem; color: #666; font-weight: 500; text-transform: uppercase; letter-spacing: 0.4px; }
+        .form-group input { padding: 0.45rem 0.6rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem; }
+        .form-group input:focus { outline: none; border-color: #4CAF50; }
+
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; border-radius: 26px; transition: 0.3s; }
-        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.3s; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #ddd; border-radius: 24px; transition: 0.2s; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.2s; }
         .switch input:checked + .slider { background: #4CAF50; }
-        .switch input:checked + .slider:before { transform: translateX(24px); }
+        .switch input:checked + .slider:before { transform: translateX(20px); }
+
+        .ticker-row { display: flex; align-items: center; gap: 0.75rem; }
+        .ticker-status { font-size: 0.82rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; }
+        .ticker-status .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+        .ticker-status.on { color: #2e7d32; }
+        .ticker-status.on .dot { background: #4CAF50; }
+        .ticker-status.off { color: #c62828; }
+        .ticker-status.off .dot { background: #e53935; }
     </style>
 </head>
 <body>
     {{template "nav" "admin"}}
     <div class="content">
-        <h1>Admin</h1>
+        <div class="page-header">
+            <h1>Admin</h1>
+            <p>System management and data sync operations</p>
+        </div>
+
         {{if eq .Msg "sync_instruments_started"}}
-            <div class="msg">Sync Instruments job started in background.</div>
+            <div class="msg msg-success">Sync Instruments job started in background.</div>
         {{else if eq .Msg "sync_shorts_started"}}
-            <div class="msg">Sync Short Trades job started in background.</div>
+            <div class="msg msg-success">Sync Short Trades job started in background.</div>
         {{else if eq .Msg "sync_daily_started"}}
-            <div class="msg">Sync Daily Data job started in background.</div>
+            <div class="msg msg-success">Sync Daily Data job started in background.</div>
         {{else if eq .Msg "symbol_renamed"}}
-            <div class="msg">Symbol renamed successfully.</div>
+            <div class="msg msg-success">Symbol renamed successfully.</div>
         {{else if eq .Msg "rename_failed"}}
-            <div class="msg" style="background:#f8d7da;color:#721c24;">Symbol rename failed. Check logs.</div>
+            <div class="msg msg-error">Symbol rename failed. Check logs.</div>
         {{else if eq .Msg "rename_missing_fields"}}
-            <div class="msg" style="background:#f8d7da;color:#721c24;">Both old and new symbol are required.</div>
+            <div class="msg msg-error">Both old and new symbol are required.</div>
         {{else if eq .Msg "compute_signals_started"}}
-            <div class="msg">Compute Signals backfill started in background.</div>
+            <div class="msg msg-success">Compute Signals backfill started in background.</div>
+        {{else if eq .Msg "sync_insider_started"}}
+            <div class="msg msg-success">Sync Insider Trades job started in background.</div>
         {{else if eq .Msg "kite_logged_out"}}
-            <div class="msg">Kite session logged out.</div>
+            <div class="msg msg-success">Kite session logged out.</div>
         {{end}}
-        <div class="card">
-            <h3>WebSocket Ticker</h3>
-            <p>Control the live market data connection.</p>
-            <div style="display:flex;align-items:center;gap:1rem;">
-                <label class="switch">
-                    <input type="checkbox" id="tickerToggle">
-                    <span class="slider"></span>
-                </label>
-                <span id="tickerStatus" style="font-weight:600;">—</span>
+
+        <div class="section">
+            <div class="section-title">System</div>
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">
+
+                        <h3 class="card-title">WebSocket Ticker</h3>
+                    </div>
+                    <p class="card-desc">Control the live market data connection to Kite.</p>
+                    <div class="card-actions">
+                        <div class="ticker-row">
+                            <label class="switch">
+                                <input type="checkbox" id="tickerToggle">
+                                <span class="slider"></span>
+                            </label>
+                            <span class="ticker-status off" id="tickerBadge">
+                                <span class="dot"></span>
+                                <span id="tickerLabel">Disconnected</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Logout Kite</h3>
+                    </div>
+                    <p class="card-desc">Clear the access token and end the broker session.</p>
+                    <div class="card-actions">
+                        <form method="POST" action="/auth/logout">
+                            <button class="btn btn-danger" type="submit">Logout</button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="card">
-            <h3>Sync Instruments</h3>
-            <p>Fetch all instruments from Kite and process them.</p>
-            <form method="POST" action="/admin/sync-instruments">
-                <button class="btn btn-primary" type="submit">Run Sync</button>
-            </form>
+
+        <div class="section">
+            <div class="section-title">Data Sync</div>
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Sync Instruments</h3>
+                    </div>
+                    <p class="card-desc">Fetch all instruments from Kite and update the local database.</p>
+                    <div class="card-actions">
+                        <form method="POST" action="/admin/sync-instruments">
+                            <button class="btn btn-primary" type="submit">Run Sync</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Sync Daily Data</h3>
+                    </div>
+                    <p class="card-desc">Process daily OHLCV trade data for all instruments.</p>
+                    <div class="card-actions">
+                        <form method="POST" action="/admin/sync-daily">
+                            <button class="btn btn-primary" type="submit">Run Sync</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Sync Short Trades</h3>
+                    </div>
+                    <p class="card-desc">Fetch short trade data for a specific date range.</p>
+                    <div class="card-actions">
+                        <form method="POST" action="/admin/sync-shorts">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="from">From</label>
+                                    <input type="date" id="from" name="from" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="to">To</label>
+                                    <input type="date" id="to" name="to" required>
+                                </div>
+                                <button class="btn btn-primary" type="submit">Run Sync</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Sync Insider Trades</h3>
+                    </div>
+                    <p class="card-desc">Fetch insider trading data from NSE for a date range.</p>
+                    <div class="card-actions">
+                        <form method="POST" action="/admin/sync-insider-trades">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="insider_from">From</label>
+                                    <input type="date" id="insider_from" name="from" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="insider_to">To</label>
+                                    <input type="date" id="insider_to" name="to" required>
+                                </div>
+                                <button class="btn btn-primary" type="submit">Run Sync</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="card">
-            <h3>Sync Daily Data</h3>
-            <p>Process daily trade data for all instruments.</p>
-            <form method="POST" action="/admin/sync-daily">
-                <button class="btn btn-primary" type="submit">Run Sync</button>
-            </form>
-        </div>
-        <div class="card">
-            <h3>Sync Short Trades</h3>
-            <p>Fetch and sync short trade data for a date range.</p>
-            <form method="POST" action="/admin/sync-shorts">
-                <label for="from">From</label>
-                <input type="date" id="from" name="from" required>
-                <label for="to">To</label>
-                <input type="date" id="to" name="to" required>
-                <br><br>
-                <button class="btn btn-primary" type="submit">Run Sync</button>
-            </form>
-        </div>
-        <div class="card">
-            <h3>Rename Symbol</h3>
-            <p>Rename a trading symbol across all tables.</p>
-            <form method="POST" action="/admin/rename-symbol">
-                <label for="old_symbol">Old Symbol</label>
-                <input type="text" id="old_symbol" name="old_symbol" placeholder="e.g. RELIANCE" required>
-                <label for="new_symbol">New Symbol</label>
-                <input type="text" id="new_symbol" name="new_symbol" placeholder="e.g. RELIANCE-NEW" required>
-                <br><br>
-                <button class="btn btn-primary" type="submit">Rename</button>
-            </form>
-        </div>
-        <div class="card">
-            <h3>Compute Signals</h3>
-            <p>Backfill VPT, divergence, and signal scores for all instruments.</p>
-            <form method="POST" action="/admin/compute-signals">
-                <button class="btn btn-primary" type="submit">Run Compute</button>
-            </form>
-        </div>
-        <div class="card">
-            <h3>Logout Kite</h3>
-            <p>Clear the Kite access token and end the session.</p>
-            <form method="POST" action="/auth/logout">
-                <button class="btn btn-primary" type="submit" style="background:#e53935;">Logout</button>
-            </form>
+
+        <div class="section">
+            <div class="section-title">Maintenance</div>
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Rename Symbol</h3>
+                    </div>
+                    <p class="card-desc">Rename a trading symbol across all tables.</p>
+                    <div class="card-actions">
+                        <form method="POST" action="/admin/rename-symbol">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="old_symbol">Old Symbol</label>
+                                    <input type="text" id="old_symbol" name="old_symbol" placeholder="RELIANCE" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="new_symbol">New Symbol</label>
+                                    <input type="text" id="new_symbol" name="new_symbol" placeholder="RELIANCE-NEW" required>
+                                </div>
+                                <button class="btn btn-primary" type="submit">Rename</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Compute Signals</h3>
+                    </div>
+                    <p class="card-desc">Backfill VPT, divergence, and signal scores for all instruments.</p>
+                    <div class="card-actions">
+                        <form method="POST" action="/admin/compute-signals">
+                            <button class="btn btn-primary" type="submit">Run Compute</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     <script>
         const toggle = document.getElementById('tickerToggle');
-        const status = document.getElementById('tickerStatus');
+        const badge = document.getElementById('tickerBadge');
+        const label = document.getElementById('tickerLabel');
 
         function updateStatus(running) {
             toggle.checked = running;
-            status.textContent = running ? 'Connected' : 'Disconnected';
-            status.style.color = running ? '#4CAF50' : '#e53935';
+            label.textContent = running ? 'Connected' : 'Disconnected';
+            badge.className = 'ticker-status ' + (running ? 'on' : 'off');
         }
 
         fetch('/api/ticker/status').then(r => r.json()).then(d => updateStatus(d.running));

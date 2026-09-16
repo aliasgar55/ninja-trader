@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ninja Trader - Insider Trades</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 0; background: #f5f5f5; }
+        .nav { display: flex; gap: 0; background: #333; padding: 0 1rem; }
+        .nav a { color: #ccc; text-decoration: none; padding: 0.75rem 1.5rem; }
+        .nav a:hover { background: #444; color: #fff; }
+        .nav a.active { color: #fff; border-bottom: 2px solid #4CAF50; }
+        .content { padding: 2rem; }
+        .page-header { margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+        .page-header h1 { margin: 0; font-size: 1.5rem; }
+        .search-box { display: flex; gap: 0.5rem; }
+        .search-box input { padding: 0.5rem 0.75rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95rem; width: 250px; }
+        .year-section { margin-bottom: 2rem; }
+        .year-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #999; font-weight: 700; margin-bottom: 0.5rem; }
+        table { border-collapse: collapse; width: 100%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th, td { padding: 0.5rem 1rem; text-align: left; border-bottom: 1px solid #eee; font-size: 0.85rem; }
+        th { background: #333; color: #fff; position: sticky; top: 0; font-size: 0.8rem; }
+        tr:hover { background: #f0f0f0; }
+        a.symbol-link { color: #1a73e8; text-decoration: none; font-weight: 500; }
+        a.symbol-link:hover { text-decoration: underline; }
+        .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+        .badge-buy { background: #e8f5e9; color: #2e7d32; }
+        .badge-sell { background: #ffebee; color: #c62828; }
+        .empty { color: #888; padding: 2rem; text-align: center; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .entity-name { font-weight: 500; }
+        .entity-category { font-size: 0.75rem; color: #888; }
+        .value-cell { text-align: right; }
+        .summary { display: flex; gap: 2rem; margin-bottom: 1rem; font-size: 0.85rem; color: #555; }
+        .summary span { font-weight: 600; color: #333; }
+        .pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.5rem; padding: 1rem 0; }
+        .pagination a { padding: 0.4rem 1rem; background: #fff; border: 1px solid #ccc; border-radius: 4px; color: #1a73e8; text-decoration: none; font-size: 0.85rem; }
+        .pagination a:hover { background: #f0f0f0; }
+        .pagination .disabled { padding: 0.4rem 1rem; color: #ccc; font-size: 0.85rem; }
+        .pagination .page-info { font-size: 0.85rem; color: #666; }
+    </style>
+</head>
+<body>
+    {{template "nav" "insider-trades"}}
+    <div class="content">
+        <div class="page-header">
+            <h1>Insider Trades</h1>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Filter by symbol or entity...">
+            </div>
+        </div>
+
+        {{if not .Years}}
+        <div class="empty">No insider trades found.</div>
+        {{else}}
+        <div class="summary">
+            Total: <span>{{.Total}}</span> trades — Page <span>{{.Page}}</span> of <span>{{.TotalPages}}</span>
+        </div>
+
+        {{range .Years}}
+        <div class="year-section" data-year="{{.Year}}">
+            <div class="year-title">{{.Year}} ({{len .Trades}} trades)</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Symbol</th>
+                        <th>Entity</th>
+                        <th>Type</th>
+                        <th>Mode</th>
+                        <th style="text-align:right">Quantity</th>
+                        <th style="text-align:right">Value (₹)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Trades}}
+                    <tr class="trade-row" data-search="{{.Symbol}} {{.EntityName}} {{.EntityCategory}}">
+                        <td>{{.Date}}</td>
+                        <td><a class="symbol-link" href="/instrument?symbol={{.Symbol}}">{{.Symbol}}</a></td>
+                        <td>
+                            <div class="entity-name">{{.EntityName}}</div>
+                            <div class="entity-category">{{.EntityCategory}}</div>
+                        </td>
+                        <td><span class="badge {{if eq .Type "Buy"}}badge-buy{{else}}badge-sell{{end}}">{{.Type}}</span></td>
+                        <td>{{.AcqMode}}</td>
+                        <td class="value-cell">{{.Quantity}}</td>
+                        <td class="value-cell">{{.Value}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+        {{end}}
+
+        <div class="pagination">
+            {{if .HasPrev}}<a href="/insider-trades?page={{add .Page -1}}">&larr; Prev</a>{{else}}<span class="disabled">&larr; Prev</span>{{end}}
+            <span class="page-info">Page {{.Page}} of {{.TotalPages}}</span>
+            {{if .HasNext}}<a href="/insider-trades?page={{add .Page 1}}">Next &rarr;</a>{{else}}<span class="disabled">Next &rarr;</span>{{end}}
+        </div>
+        {{end}}
+    </div>
+    <script>
+        const input = document.getElementById('searchInput');
+        if (input) {
+            input.addEventListener('input', () => {
+                const q = input.value.toLowerCase();
+                document.querySelectorAll('.trade-row').forEach(row => {
+                    row.style.display = row.dataset.search.toLowerCase().includes(q) ? '' : 'none';
+                });
+                document.querySelectorAll('.year-section').forEach(section => {
+                    const visible = section.querySelectorAll('.trade-row[style=""],.trade-row:not([style])');
+                    const hidden = section.querySelectorAll('.trade-row[style*="none"]');
+                    section.style.display = (visible.length === 0 && hidden.length > 0) ? 'none' : '';
+                });
+            });
+        }
+    </script>
+</body>
+</html>

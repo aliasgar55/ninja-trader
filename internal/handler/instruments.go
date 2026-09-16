@@ -30,10 +30,10 @@ func formatIndianNumber(n float64) string {
 }
 
 type InstrumentHandler struct {
-	Repo      repo.InstrumentRepo
-	TradeRepo repo.TradeRepo
-	Service   *service.InstrumentService
-	Tmpl      *template.Template
+  Repo      repo.InstrumentRepo
+  TradeRepo repo.TradeRepo
+  Service   *service.InstrumentService
+  Tmpl      *template.Template
 }
 
 func (h *InstrumentHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -90,17 +90,17 @@ func (h *InstrumentHandler) Detail(w http.ResponseWriter, r *http.Request) {
 			redirectURL += "&date=" + url.QueryEscape(date)
 		}
 		http.Redirect(w, r, redirectURL, http.StatusFound)
-    return
-  }
+		return
+	}
 	if period == "max" {
 		period = ""
 	}
-  watchlistOnly := r.URL.Query().Get("watchlist") == "1"
-  fromRange := r.URL.Query().Get("from") == "range"
+	watchlistOnly := r.URL.Query().Get("watchlist") == "1"
+	fromRange := r.URL.Query().Get("from") == "range"
 
-  // Run independent DB queries concurrently
-  type adjacentResult struct{ prev, next string }
-  adjCh := make(chan adjacentResult, 1)
+	// Run independent DB queries concurrently
+	type adjacentResult struct{ prev, next string }
+	adjCh := make(chan adjacentResult, 1)
 	go func() {
 		var p, n string
 		if fromRange {
@@ -113,7 +113,7 @@ func (h *InstrumentHandler) Detail(w http.ResponseWriter, r *http.Request) {
 			p, n = h.Repo.GetAdjacentSymbols(symbol, sort, order)
 		}
 		adjCh <- adjacentResult{p, n}
-  }()
+	}()
 
   fullName := ""
   watchlist := false
@@ -122,32 +122,34 @@ func (h *InstrumentHandler) Detail(w http.ResponseWriter, r *http.Request) {
   index := ""
   holding := 0
   needsAdjustment := false
+  isFnoSec := false
   var deliveryPct float32
   var updatedAt time.Time
   var pctFrom52WLow float64
   tag := ""
   if inst, err := h.Repo.GetInstrumentBySymbol(symbol); err == nil {
-    fullName = inst.InstrumentFullName
-    watchlist = inst.Watchlist
-    marketCap = formatIndianNumber(inst.MarketCap)
-    basicIndustry = inst.BasicIndustry
-    index = inst.Index
-    updatedAt = inst.UpdatedAt
+		fullName = inst.InstrumentFullName
+		watchlist = inst.Watchlist
+		marketCap = formatIndianNumber(inst.MarketCap)
+		basicIndustry = inst.BasicIndustry
+		index = inst.Index
+		updatedAt = inst.UpdatedAt
     needsAdjustment = inst.NeedsAdjsutment
+    isFnoSec = inst.IsFnoSec
     tag = inst.Tag
-    if trade, err := h.TradeRepo.GetHoldingByInstrumentID(inst.ID); err == nil {
-      holding = trade
-    }
-    if dp, err := h.Repo.GetLatestDeliveryPercentage(symbol); err == nil {
-      deliveryPct = dp
-    }
-    if latestRow, err := h.Repo.GetPreviousTrade(symbol, time.Now().AddDate(0, 0, 1)); err == nil && latestRow.YearLow > 0 {
-      pctFrom52WLow = (latestRow.AdjustedClosePrice - latestRow.YearLow) / latestRow.YearLow * 100
-    }
-  }
+		if trade, err := h.TradeRepo.GetHoldingByInstrumentID(inst.ID); err == nil {
+			holding = trade
+		}
+		if dp, err := h.Repo.GetLatestDeliveryPercentage(symbol); err == nil {
+			deliveryPct = dp
+		}
+		if latestRow, err := h.Repo.GetPreviousTrade(symbol, time.Now().AddDate(0, 0, 1)); err == nil && latestRow.YearLow > 0 {
+			pctFrom52WLow = (latestRow.AdjustedClosePrice - latestRow.YearLow) / latestRow.YearLow * 100
+		}
+	}
 
-  adj := <-adjCh
-  prev, next := adj.prev, adj.next
+	adj := <-adjCh
+	prev, next := adj.prev, adj.next
 	tmplPeriod := period
 	if period == "" {
 		tmplPeriod = "max"
@@ -156,7 +158,7 @@ func (h *InstrumentHandler) Detail(w http.ResponseWriter, r *http.Request) {
 	if !updatedAt.IsZero() {
 		lastUpdated = updatedAt.Format("02/01/06 15:04:05")
 	}
-	h.Tmpl.ExecuteTemplate(w, "instrument_detail.html", struct {
+	if err := h.Tmpl.ExecuteTemplate(w, "instrument_detail.html", struct {
 		Symbol             string
 		FullName           string
 		MarketCap          string
@@ -171,15 +173,18 @@ func (h *InstrumentHandler) Detail(w http.ResponseWriter, r *http.Request) {
 		FromRange          bool
 		Holding            int
 		LastUpdated        string
-		NeedsAdjustment    bool
-		DeliveryPercentage float32
-		PctFrom52WLow     float64
-		Tag                string
-		TagOptions         []string
-		Sort               string
-		Order              string
-		Date               string
-	}{symbol, fullName, marketCap, basicIndustry, index, r.URL.Query().Get("msg"), tmplPeriod, prev, next, watchlist, watchlistOnly, fromRange, holding, lastUpdated, needsAdjustment, deliveryPct, pctFrom52WLow, tag, []string{"oversold", "touch", "scoop", "overbought", "repel", "horizontal", "breakout"}, sort, order, date})
+    NeedsAdjustment    bool
+    IsFnoSec           bool
+    DeliveryPercentage float32
+    PctFrom52WLow      float64
+    Tag                string
+    TagOptions         []string
+    Sort               string
+    Order              string
+    Date               string
+  }{symbol, fullName, marketCap, basicIndustry, index, r.URL.Query().Get("msg"), tmplPeriod, prev, next, watchlist, watchlistOnly, fromRange, holding, lastUpdated, needsAdjustment, isFnoSec, deliveryPct, pctFrom52WLow, tag, []string{"oversold", "touch", "scoop", "overbought", "repel", "horizontal", "breakout"}, sort, order, date}); err != nil {
+		log.Printf("Template error instrument_detail.html: %v", err)
+	}
 }
 
 func (h *InstrumentHandler) ToggleWatchlist(w http.ResponseWriter, r *http.Request) {
@@ -257,48 +262,48 @@ func (h *InstrumentHandler) ChartData(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "symbol required", http.StatusBadRequest)
 		return
 	}
-  since := parsePeriodSince(r.URL.Query().Get("period"))
-  var rows []models.Historicaldata
-  var err error
-  if since != nil {
-    rows, err = h.Repo.GetHistoricalDataBySymbolSince(symbol, *since)
-  } else {
-    rows, err = h.Repo.GetHistoricalDataBySymbol(symbol)
-  }
-  if err != nil {
-    http.Error(w, err.Error(), http.StatusInternalServerError)
-    return
-  }
-  var marketCap float64
-  if inst, err := h.Repo.GetInstrumentBySymbol(symbol); err == nil {
-    marketCap = inst.MarketCap
-  }
-  labels := make([]string, len(rows))
-  closeValues := make([]float64, len(rows))
-  lowValues := make([]float64, len(rows))
-  highValues := make([]float64, len(rows))
-  volumePerTrade := make([]int64, len(rows))
-  volume := make([]uint64, len(rows))
-  volumeMa20 := make([]float64, len(rows))
-  noOfTrades := make([]int64, len(rows))
-  adjClose := make([]float64, len(rows))
-  deliveryPercentage := make([]float32, len(rows))
-  deliveryValue := make([]float64, len(rows))
-  vptMa20 := make([]float64, len(rows))
-  vptScore := make([]float64, len(rows))
-  divergence := make([]float64, len(rows))
-  divergenceMax3y := make([]float64, len(rows))
-  for i, r := range rows {
-    labels[i] = r.Date.Format("02 Jan 06")
-    closeValues[i] = r.C
-    lowValues[i] = r.L
-    highValues[i] = r.H
-    volumePerTrade[i] = r.VolumePerTrade
-    volume[i] = r.Volume
-    volumeMa20[i] = r.VolumeMa20
-    noOfTrades[i] = r.NoOfTrades
-    adjClose[i] = r.AdjustedClosePrice
-    deliveryPercentage[i] = r.DeliveryPercentage
+	since := parsePeriodSince(r.URL.Query().Get("period"))
+	var rows []models.Historicaldata
+	var err error
+	if since != nil {
+		rows, err = h.Repo.GetHistoricalDataBySymbolSince(symbol, *since)
+	} else {
+		rows, err = h.Repo.GetHistoricalDataBySymbol(symbol)
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var marketCap float64
+	if inst, err := h.Repo.GetInstrumentBySymbol(symbol); err == nil {
+		marketCap = inst.MarketCap
+	}
+	labels := make([]string, len(rows))
+	closeValues := make([]float64, len(rows))
+	lowValues := make([]float64, len(rows))
+	highValues := make([]float64, len(rows))
+	volumePerTrade := make([]int64, len(rows))
+	volume := make([]uint64, len(rows))
+	volumeMa20 := make([]float64, len(rows))
+	noOfTrades := make([]int64, len(rows))
+	adjClose := make([]float64, len(rows))
+	deliveryPercentage := make([]float32, len(rows))
+	deliveryValue := make([]float64, len(rows))
+	vptMa20 := make([]float64, len(rows))
+	vptScore := make([]float64, len(rows))
+	divergence := make([]float64, len(rows))
+	divergenceMax3y := make([]float64, len(rows))
+	for i, r := range rows {
+		labels[i] = r.Date.Format("02 Jan 06")
+		closeValues[i] = r.C
+		lowValues[i] = r.L
+		highValues[i] = r.H
+		volumePerTrade[i] = r.VolumePerTrade
+		volume[i] = r.Volume
+		volumeMa20[i] = r.VolumeMa20
+		noOfTrades[i] = r.NoOfTrades
+		adjClose[i] = r.AdjustedClosePrice
+		deliveryPercentage[i] = r.DeliveryPercentage
 		if marketCap > 0 {
 			if r.DeliveryValue > 0 {
 				deliveryValue[i] = r.DeliveryValue
@@ -306,29 +311,29 @@ func (h *InstrumentHandler) ChartData(w http.ResponseWriter, r *http.Request) {
 				deliveryValue[i] = float64(r.Volume) * r.C * float64(r.DeliveryPercentage) / 100.0 / (marketCap * 10000000) * 100
 			}
 		}
-    vptMa20[i] = r.VptMa20
-    vptScore[i] = r.VptScore
-    divergence[i] = r.Divergence
-    divergenceMax3y[i] = r.DivergenceMax3y
-  }
-  w.Header().Set("Content-Type", "application/json")
-  json.NewEncoder(w).Encode(map[string]any{
-    "labels":             labels,
-    "values":             closeValues,
-    "low":               lowValues,
-    "high":              highValues,
-    "volumePerTrade":     volumePerTrade,
-    "volume":             volume,
-    "volumeMa20":         volumeMa20,
-    "noOfTrades":         noOfTrades,
-    "adjClose":           adjClose,
-    "deliveryPercentage": deliveryPercentage,
-    "deliveryValue":      deliveryValue,
-    "vptMa20":            vptMa20,
-    "vptScore":           vptScore,
-    "divergence":         divergence,
-    "divergenceMax3y":    divergenceMax3y,
-  })
+		vptMa20[i] = r.VptMa20
+		vptScore[i] = r.VptScore
+		divergence[i] = r.Divergence
+		divergenceMax3y[i] = r.DivergenceMax3y
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"labels":             labels,
+		"values":             closeValues,
+		"low":                lowValues,
+		"high":               highValues,
+		"volumePerTrade":     volumePerTrade,
+		"volume":             volume,
+		"volumeMa20":         volumeMa20,
+		"noOfTrades":         noOfTrades,
+		"adjClose":           adjClose,
+		"deliveryPercentage": deliveryPercentage,
+		"deliveryValue":      deliveryValue,
+		"vptMa20":            vptMa20,
+		"vptScore":           vptScore,
+		"divergence":         divergence,
+		"divergenceMax3y":    divergenceMax3y,
+	})
 }
 
 func (h *InstrumentHandler) SyncTradeHistory(w http.ResponseWriter, r *http.Request) {
@@ -367,10 +372,10 @@ func (h *InstrumentHandler) ProcessDailyData(w http.ResponseWriter, r *http.Requ
 	}
 	go func() {
 		log.Printf("ProcessDailyData started for %s", symbol)
-        if err := h.Service.ProcessDailyData(symbol); err != nil {
-            log.Printf("ProcessDailyData FAILED for %s: %v", symbol, err)
-            return
-        }
+		if err := h.Service.ProcessDailyData(symbol); err != nil {
+			log.Printf("ProcessDailyData FAILED for %s: %v", symbol, err)
+			return
+		}
 		log.Printf("ProcessDailyData completed for %s", symbol)
 	}()
 	http.Redirect(w, r, "/instrument?symbol="+url.QueryEscape(symbol)+"&msg=daily_sync_started", http.StatusSeeOther)
@@ -409,7 +414,7 @@ func (h *InstrumentHandler) SyncSplitAndDividend(w http.ResponseWriter, r *http.
 		h.Service.SyncSplitAndDividend(symbol, nil, nil)
 		log.Printf("SyncSplitAndDividend completed for %s", symbol)
 	}()
-  http.Redirect(w, r, "/instrument?symbol="+url.QueryEscape(symbol)+"&msg=split_dividend_sync_started", http.StatusSeeOther)
+	http.Redirect(w, r, "/instrument?symbol="+url.QueryEscape(symbol)+"&msg=split_dividend_sync_started", http.StatusSeeOther)
 }
 
 func (h *InstrumentHandler) AdjustPrice(w http.ResponseWriter, r *http.Request) {
@@ -440,7 +445,7 @@ func (h *InstrumentHandler) AdjustPrice(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	log.Printf("AdjustPrice: divided adjusted_close_price by %.4f for %s before %s", ratio, symbol, dateStr)
-  http.Redirect(w, r, "/instrument?symbol="+url.QueryEscape(symbol)+"&msg=price_adjusted", http.StatusSeeOther)
+	http.Redirect(w, r, "/instrument?symbol="+url.QueryEscape(symbol)+"&msg=price_adjusted", http.StatusSeeOther)
 }
 
 func (h *InstrumentHandler) ShortsChartData(w http.ResponseWriter, r *http.Request) {
@@ -631,7 +636,7 @@ func (h *InstrumentHandler) DeleteNote(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-  w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (h *InstrumentHandler) RangePage(w http.ResponseWriter, r *http.Request) {
@@ -648,7 +653,7 @@ func (h *InstrumentHandler) RangePage(w http.ResponseWriter, r *http.Request) {
 		Query       string
 		Sort        string
 		Order       string
-  }{instruments, query, sort, order})
+	}{instruments, query, sort, order})
 }
 
 func (h *InstrumentHandler) NotesPage(w http.ResponseWriter, r *http.Request) {
@@ -657,42 +662,42 @@ func (h *InstrumentHandler) NotesPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-  type noteView struct {
-    ID            uint
-    TradingSymbol string
-    Date          string
-    Text          string
-    Price         float64
-    CurrentPrice  float64
-    ChangePct     float64
-    PctFrom52WLow float64
-  }
-  views := make([]noteView, len(notes))
-  for i, n := range notes {
-    var price, currentPrice, pctFrom52WLow float64
-    if history, err := h.Repo.GetPreviousTrade(n.TradingSymbol, n.Date); err == nil {
-      price = history.C
-    }
-    if latestRow, err := h.Repo.GetPreviousTrade(n.TradingSymbol, time.Now().AddDate(0, 0, 1)); err == nil {
-      currentPrice = latestRow.AdjustedClosePrice
-      if latestRow.YearLow > 0 {
-        pctFrom52WLow = (latestRow.AdjustedClosePrice - latestRow.YearLow) / latestRow.YearLow * 100
-      }
-    }
-    var changePct float64
-    if price > 0 && currentPrice > 0 {
-      changePct = (currentPrice - price) / price * 100
-    }
-    views[i] = noteView{
-      ID:            n.ID,
-      TradingSymbol: n.TradingSymbol,
-      Date:          n.Date.Format("02 Jan 2006"),
-      Text:          n.Text,
-      Price:         price,
-      CurrentPrice:  currentPrice,
-      ChangePct:     changePct,
-      PctFrom52WLow: pctFrom52WLow,
-    }
+	type noteView struct {
+		ID            uint
+		TradingSymbol string
+		Date          string
+		Text          string
+		Price         float64
+		CurrentPrice  float64
+		ChangePct     float64
+		PctFrom52WLow float64
+	}
+	views := make([]noteView, len(notes))
+	for i, n := range notes {
+		var price, currentPrice, pctFrom52WLow float64
+		if history, err := h.Repo.GetPreviousTrade(n.TradingSymbol, n.Date); err == nil {
+			price = history.C
+		}
+		if latestRow, err := h.Repo.GetPreviousTrade(n.TradingSymbol, time.Now().AddDate(0, 0, 1)); err == nil {
+			currentPrice = latestRow.AdjustedClosePrice
+			if latestRow.YearLow > 0 {
+				pctFrom52WLow = (latestRow.AdjustedClosePrice - latestRow.YearLow) / latestRow.YearLow * 100
+			}
+		}
+		var changePct float64
+		if price > 0 && currentPrice > 0 {
+			changePct = (currentPrice - price) / price * 100
+		}
+		views[i] = noteView{
+			ID:            n.ID,
+			TradingSymbol: n.TradingSymbol,
+			Date:          n.Date.Format("02 Jan 2006"),
+			Text:          n.Text,
+			Price:         price,
+			CurrentPrice:  currentPrice,
+			ChangePct:     changePct,
+			PctFrom52WLow: pctFrom52WLow,
+		}
 	}
 	// Group by symbol
 	type symbolGroup struct {
@@ -716,3 +721,4 @@ func (h *InstrumentHandler) NotesPage(w http.ResponseWriter, r *http.Request) {
 		Total  int
 	}{groups, len(views)})
 }
+

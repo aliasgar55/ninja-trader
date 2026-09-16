@@ -83,7 +83,7 @@
         .gtt-form .form-row > div { flex: 1; }
         .gtt-submit { margin-top: 1rem; width: 100%; padding: 0.5rem; background: #4CAF50; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.95rem; font-weight: 600; }
         .gtt-submit:hover { background: #43A047; }
-        .gtt-btn { padding: 0; border-radius: 6px; border: 1px solid #FF9800; cursor: pointer; font-size: 0.9rem; font-weight: 600; background: #fff; color: #FF9800; width: 120px; height: 36px; text-align: center; }
+        .gtt-btn { padding: 0; border-radius: 6px; border: 1px solid #FF9800; cursor: pointer; font-size: 0.9rem; font-weight: 600; background: #fff; color: #FF9800; width: 80px; height: 36px; text-align: center; }
         .gtt-btn:hover { background: #FFF3E0; }
         .tradingview-btn { padding: 0; border-radius: 6px; border: 1px solid #2962FF; cursor: pointer; font-size: 0.9rem; font-weight: 600; background: #fff; color: #2962FF; width: 120px; height: 36px; text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
         .tradingview-btn:hover { background: #E3F2FD; }
@@ -118,7 +118,7 @@
 <body>
     {{template "nav" "instruments"}}
     <div class="content">
-        <a class="back" href="{{if .WatchlistOnly}}/watchlist{{else}}/{{end}}{{if .Sort}}?sort={{.Sort}}&order={{.Order}}{{end}}">← Back to {{if .WatchlistOnly}}Watchlist{{else}}Instruments{{end}}</a>
+        <a class="back" href="{{if .WatchlistOnly}}/watchlist{{else}}/{{end}}?{{if .Sort}}sort={{.Sort}}&order={{.Order}}{{end}}{{if .Date}}{{if .Sort}}&{{end}}date={{.Date}}{{end}}{{if .FromRange}}{{if or .Sort .Date}}&{{end}}from=range{{end}}">← Back to {{if .WatchlistOnly}}Watchlist{{else}}Instruments{{end}}</a>
         <form class="search-box" id="symbolSearch" onsubmit="return goToSymbol(event)">
             <input type="text" id="symbolInput" placeholder="Go to symbol...">
             <button type="submit">Go</button>
@@ -136,6 +136,7 @@
                     {{if ne .Holding 0}}<div class="meta-item"><span class="meta-label">Holding</span><span class="meta-value">{{.Holding}}</span></div>{{end}}
                     {{if gt .DeliveryPercentage 0.0}}<div class="meta-item"><span class="meta-label">Delivery %</span><span class="meta-value">{{printf "%.2f" .DeliveryPercentage}}%</span></div>{{end}}
                     {{if gt .PctFrom52WLow 0.0}}<div class="meta-item"><span class="meta-label">From 52W Low</span><span class="meta-value">{{printf "%.0f" .PctFrom52WLow}}%</span></div>{{end}}
+                    {{if .IsFnoSec}}<div class="meta-item"><span class="meta-label">F&amp;O</span><span class="meta-value" style="color:#155724">Yes</span></div>{{end}}
                     <div class="meta-item">
                         <span class="meta-label">Tag</span>
                         <div class="tag-dropdown" id="tagDropdown">
@@ -169,9 +170,10 @@
                 </div>
                 <div style="display:flex;gap:0.5rem">
                     <button class="tag-history-btn" onclick="openTagHistoryDrawer()">Tag History</button>
-                    <button class="gtt-btn" onclick="openGTTDrawer()">GTT Order</button>
+                    <button class="gtt-btn" onclick="openGTTDrawer()">GTT</button>
                     <button class="tag-history-btn" onclick="openNotesDrawer()">Notes</button>
                     <button class="tag-history-btn" onclick="openAlertDrawer()">Alert</button>
+                    <button class="tag-history-btn" onclick="openInsiderDrawer()">Insider</button>
                     <button class="tag-history-btn" id="bookmarkBtn" onclick="saveBookmark()">📌 Bookmark</button>
                     <a href="https://www.tradingview.com/chart/?symbol=NSE:{{.Symbol}}" target="_blank" rel="noopener noreferrer" class="tradingview-btn">TradingView</a>
                     <a href="https://www.screener.in/company/{{.Symbol}}/" target="_blank" rel="noopener noreferrer" class="tradingview-btn" style="border-color:#4CAF50;color:#4CAF50;">Screener</a>
@@ -449,6 +451,7 @@
             if (e.key === 'w' || e.key === 'W') document.getElementById('watchlistBtn')?.click();
             if (e.key === 'b' || e.key === 'B') { e.preventDefault(); saveBookmark(); return; }
             if (e.key === 'g' || e.key === 'G') { e.preventDefault(); document.getElementById('gttDrawer').classList.contains('open') ? closeGTTDrawer() : openGTTDrawer(); return; }
+            if (e.key === 'i' || e.key === 'I') { e.preventDefault(); document.getElementById('insiderDrawer').classList.contains('open') ? closeInsiderDrawer() : openInsiderDrawer(); return; }
             if (['1','2','3','4','5','6'].includes(e.key)) document.getElementById('period-' + e.key)?.click();
             if (e.key === '0') document.getElementById('period-0')?.click();
             if (e.key === '[' && activeIdx > 0) document.getElementById(periods[activeIdx - 1])?.click();
@@ -592,7 +595,41 @@
             }
             console.log(priceData)
 
+            // Find the label index closest to 3 years ago
+            const threeYearsAgo = new Date();
+            threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
+            let threeYearIdx = -1;
+            for (let i = 0; i < labels.length; i++) {
+                const d = new Date(labels[i]);
+                if (d >= threeYearsAgo) { threeYearIdx = i; break; }
+            }
+
+            const verticalLinePlugin = {
+                id: 'threeYearLine',
+                afterDraw(chart) {
+                    if (threeYearIdx < 0) return;
+                    const xScale = chart.scales.x;
+                    const x = xScale.getPixelForValue(threeYearIdx);
+                    if (x < xScale.left || x > xScale.right) return;
+                    const ctx = chart.ctx;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.setLineDash([4, 4]);
+                    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+                    ctx.lineWidth = 1;
+                    ctx.moveTo(x, chart.chartArea.top);
+                    ctx.lineTo(x, chart.chartArea.bottom);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.font = '10px system-ui';
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                    ctx.fillText('3Y', x + 3, chart.chartArea.top + 10);
+                    ctx.restore();
+                }
+            };
+
             priceChart = new Chart(document.getElementById('priceChart'), {
+                plugins: [verticalLinePlugin],
                 data: {
                     labels: labels,
                     datasets: [{
@@ -1086,6 +1123,20 @@
         </div>
     </div>
 
+    <!-- Insider Trades Drawer -->
+    <div id="insiderOverlay" class="drawer-overlay" onclick="closeInsiderDrawer()"></div>
+    <div id="insiderDrawer" class="drawer">
+        <div class="drawer-header">
+            <h2>Insider Trades — {{.Symbol}}</h2>
+            <button class="drawer-close" onclick="closeInsiderDrawer()">&times;</button>
+        </div>
+        <div class="drawer-body">
+            <div class="drawer-section">
+                <div id="insiderContent"><span style="color:#999;font-size:0.85rem">Loading...</span></div>
+            </div>
+        </div>
+    </div>
+
     <script>
         let currentAction = null;
         function openOrderModal(action) {
@@ -1127,6 +1178,7 @@
                 closeTagHistoryDrawer();
                 closeNotesDrawer();
                 closeAlertDrawer();
+                closeInsiderDrawer();
             }
         });
 
@@ -1395,6 +1447,50 @@
                     }
                 })
                 .catch(() => showToast('Delete failed'));
+        }
+
+        // Insider Trades Drawer
+        function openInsiderDrawer() {
+            document.getElementById('insiderOverlay').classList.add('open');
+            document.getElementById('insiderDrawer').classList.add('open');
+            loadInsiderTrades();
+        }
+
+        function closeInsiderDrawer() {
+            document.getElementById('insiderOverlay').classList.remove('open');
+            document.getElementById('insiderDrawer').classList.remove('open');
+        }
+
+        function loadInsiderTrades() {
+            const container = document.getElementById('insiderContent');
+            container.innerHTML = '<span style="color:#999;font-size:0.85rem">Loading...</span>';
+            fetch('/api/instrument/insider-trades?symbol=' + encodeURIComponent(symbol))
+                .then(res => res.json())
+                .then(data => {
+                    if (!data || data.length === 0) {
+                        container.innerHTML = '<span style="color:#999;font-size:0.85rem">No insider trades found.</span>';
+                        return;
+                    }
+                    container.innerHTML = data.map(t => {
+                        const isBuy = t.type.toLowerCase().includes('buy');
+                        const color = isBuy ? '#2e7d32' : '#c62828';
+                        const val = t.value > 0 ? '₹' + (t.value / 100000).toFixed(2) + 'L' : '';
+                        return '<div style="border-bottom:1px solid #f0f0f0;padding:0.6rem 0">' +
+                            '<div style="display:flex;justify-content:space-between;align-items:center">' +
+                                '<span style="font-size:0.8rem;color:#666">' + t.date + '</span>' +
+                                '<span style="font-size:0.8rem;font-weight:600;color:' + color + '">' + t.type + '</span>' +
+                            '</div>' +
+                            '<div style="font-size:0.85rem;font-weight:500;margin-top:0.2rem">' + t.entity + '</div>' +
+                            '<div style="font-size:0.75rem;color:#888;margin-top:0.1rem">' + t.category + (t.acqMode ? ' · ' + t.acqMode : '') + '</div>' +
+                            '<div style="font-size:0.8rem;margin-top:0.2rem">Qty: ' + t.quantity.toLocaleString() + (val ? ' · ' + val : '') +
+                                (t.holdingAfterPct > 0 ? ' · <span style="color:#555">Post: ' + t.holdingAfterPct.toFixed(2) + '%</span>' : '') +
+                            '</div>' +
+                        '</div>';
+                    }).join('');
+                })
+                .catch(() => {
+                    container.innerHTML = '<span style="color:#c62828;font-size:0.85rem">Failed to load insider trades.</span>';
+                });
         }
     </script>
 </body>
