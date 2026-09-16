@@ -20,7 +20,7 @@ func (repo *InstrumentRepo) CreateInstrument(instrument *models.Instrument) erro
 			Columns: []clause.Column{
 				{Name: "instrument_token"},
 			},
-			DoUpdates: clause.AssignmentColumns([]string{"market_cap", "nse_api_success", "is_nav", "instrument_full_name"}),
+			DoUpdates: clause.AssignmentColumns([]string{"market_cap", "nse_api_success", "is_nav", "instrument_full_name", "active"}),
 		},
 	).Create(instrument).Error
 }
@@ -78,7 +78,8 @@ var allowedSortColumns = map[string]string{
   "vol_ratio":      "vol_ratio",
   "range_3m":       "range_3m",
 	"pct_from_52w_low": "pct_from_52w_low",
-	"pct_change":       "pct_change",
+  "pct_change":       "pct_change",
+  "is_fno_sec":       "instruments.is_fno_sec",
 }
 
 func buildSortOrder(sort, order string) string {

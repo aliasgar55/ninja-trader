@@ -315,12 +315,14 @@ func (s *InstrumentService) ProcessDailyData(symbol string) error {
 	if dateRange.MinDate.IsZero() {
 		syncStartDate = time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC)
 	} else {
+		// add 1 so the max date to get the next day data
 		syncStartDate = dateRange.MaxDate.AddDate(0, 0, 1)
+		if syncStartDate.After(time.Now()) {
+			syncStartDate = time.Now()
+		}
+
 	}
 
-	if syncStartDate.After(time.Now()) {
-		syncStartDate = time.Now()
-	}
 	syncEndDate := time.Now()
 	log.Printf("ProcessDailyData [%s] syncing trade history from %s to %s\n", symbol, syncStartDate.Format("2006-01-02"), syncEndDate.Format("2006-01-02"))
 	metaData,err := nse.GetMetaData(symbol)
@@ -365,6 +367,9 @@ func (s *InstrumentService) ProcessDailyData(symbol string) error {
 	instrument.BasicIndustry = nseResp.GetSecInfo().BasicIndustry
 	instrument.Index = nseResp.GetSecInfo().Index
 	instrument.NeedsAdjsutment = nseResp.GetNeedsAdjustment()
+	if metaData.IsFNOSec == "true" {
+		instrument.IsFnoSec = true
+	}
 	if instrument.NeedsAdjsutment {
 		// todo: implement auto adjustment
 	}
@@ -491,15 +496,19 @@ func (s *InstrumentService) ComputeSignals(symbol string) error {
     if validStart < 19 {
       validStart = 19
     }
-    // Find max VPT MA20 in the window
-    maxVpt := 0.0
+    // Find min and max VPT MA20 in the window
+    minVpt := math.Inf(1)
+    maxVpt := math.Inf(-1)
     for j := validStart; j <= i; j++ {
+      if vptMa20[j] < minVpt {
+        minVpt = vptMa20[j]
+      }
       if vptMa20[j] > maxVpt {
         maxVpt = vptMa20[j]
       }
     }
-    if maxVpt > 0 {
-      vptScore[i] = (vptMa20[i] / maxVpt) * 100.0
+    if maxVpt > minVpt {
+      vptScore[i] = (vptMa20[i] - minVpt) / (maxVpt - minVpt) * 100.0
     }
     divergence[i] = vptZ[i] - priceZ[i]
   }

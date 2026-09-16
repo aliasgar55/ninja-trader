@@ -29,6 +29,7 @@ type Instrument struct {
 	WatchListDate      time.Time
 	NeedsAdjsutment    bool
 	Tag                string
+	IsFnoSec           bool
 }
 
 type TagHistory struct {
@@ -120,8 +121,8 @@ type Note struct {
 
 type AlertLog struct {
 	gorm.Model
-	AlertType     string    `gorm:"index"` // "PRICE" or "VOLUME"
-	TradingSymbol string    `gorm:"index"`
+	AlertType     string `gorm:"index"` // "PRICE" or "VOLUME"
+	TradingSymbol string `gorm:"index"`
 	Price         float64
 	Message       string
 	AlertTime     time.Time `gorm:"index"`

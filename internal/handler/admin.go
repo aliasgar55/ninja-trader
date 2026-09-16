@@ -17,6 +17,7 @@ import (
 
 type AdminHandler struct {
 	Service *service.InstrumentService
+	InsiderTradeService *service.InsiderTradesService
 	Ticker  *ticker.Service
 	Db      *gorm.DB
 	Tmpl    *template.Template
@@ -192,3 +193,24 @@ func (h *AdminHandler) GetLastURL(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"url": url})
 }
+
+func (h *AdminHandler) SyncInsiderTrades(w http.ResponseWriter, r *http.Request) {
+      if r.Method != http.MethodPost {
+        http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+        return
+      }
+      from, err := time.Parse("2006-01-02", r.FormValue("from"))
+      if err != nil {
+        http.Error(w, "invalid 'from' date", http.StatusBadRequest)
+        return
+      }
+      to, err := time.Parse("2006-01-02", r.FormValue("to"))
+      if err != nil {
+        http.Error(w, "invalid 'to' date", http.StatusBadRequest)
+        return
+      }
+      go h.InsiderTradeService.StartInsiderTradeSync(from, to)
+      http.Redirect(w, r, "/admin?msg=sync_insider_started", http.StatusSeeOther)
+}
+
+
