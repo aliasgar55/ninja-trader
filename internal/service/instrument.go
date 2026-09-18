@@ -150,7 +150,7 @@ func (s *InstrumentService) SyncTradeHistory(symbol string, from time.Time, to t
 	workers := uint8(5)
 	tradeData, err := nse.GetHistoricalData(symbol, "EQ", from, to)
 	if err != nil {
-		fmt.Printf("Error fetching nse data from symbol: %s, %v, %v, %v\n", symbol, from, to, err)
+    log.Printf("Error fetching nse data from symbol: %s, %v, %v, %v\n", symbol, from, to, err)
 
 	}
 	for range workers {
@@ -251,7 +251,7 @@ func (s *InstrumentService) SyncSplitAndDividend(symbol string, minDate, maxDate
 
 	err = s.InstruRepo.BulkInsertEvents(dbList)
 	if err != nil {
-		fmt.Printf("Error inserting events to the database error: %v\n", err)
+    log.Printf("Error inserting events to the database error: %v\n", err)
 		return err
 	}
 	return nil
@@ -261,7 +261,7 @@ func (s *InstrumentService) SyncSplitAndDividend(symbol string, minDate, maxDate
 func (s *InstrumentService) ProcessTradeHistory(trades []models.Historicaldata) error {
 	err := s.InstruRepo.BulkInsertTradeHistory(trades)
 	if err != nil {
-		fmt.Println("Error saving trade history to the database")
+    log.Println("Error saving trade history to the database")
 		return err
 	}
 	return nil
@@ -388,7 +388,7 @@ func (s *InstrumentService) ProcessDailyData(symbol string) error {
 	log.Printf("ProcessDailyData completed for %s\n", symbol)
 
 	if err := s.ComputeSignals(symbol); err != nil {
-		fmt.Println("Calling compute signal")
+    log.Println("Calling compute signal")
 		log.Printf("ProcessDailyData [%s] error computing signals: %v\n", symbol, err)
 	}
 

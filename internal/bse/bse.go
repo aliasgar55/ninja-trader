@@ -140,7 +140,7 @@ func GetInsideTrades(from, to time.Time) ([]InsideTrade, error) {
 		}
 		toStr := toCurr.Format("02-01-2006")
 		url := fmt.Sprintf("https://www.nseindia.com/api/corporates-pit?index=equities&from_date=%s&to_date=%s", dateFrom, toStr)
-		fmt.Printf("Calling: %s: \n", url)
+    log.Printf("Calling: %s\n", url)
 		method := "GET"
 		req, err := http.NewRequest(method, url, nil)
 		if err != nil {

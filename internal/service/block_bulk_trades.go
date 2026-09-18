@@ -1,9 +1,8 @@
 package service
 
 import (
-	"fmt"
-	"log"
-	models "ninja-trader/internal/model"
+  "log"
+  models "ninja-trader/internal/model"
 	"ninja-trader/internal/nse"
 	repo "ninja-trader/internal/repository"
 	"sync"
@@ -38,7 +37,7 @@ func (s *BBService) StartBulkBlockDealSyncWithoutDate() {
 
 func (s *BBService) startBulkBlockDealSync(from, to time.Time, dealType models.DealType) {
 	log.Printf("Starting %s trade sync\n", string(dealType))
-	defer fmt.Printf("Completed processing %s deals\n", string(dealType))
+  defer log.Printf("Completed processing %s deals\n", string(dealType))
 
 	var detailsWg sync.WaitGroup
 	defer detailsWg.Wait()

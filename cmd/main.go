@@ -1,10 +1,9 @@
 package main
 
 import (
-	"context"
-	"fmt"
-	"html/template"
-	"log"
+  "context"
+  "html/template"
+  "log"
 	"net/http"
 	"ninja-trader/internal/database"
 	"ninja-trader/internal/handler"

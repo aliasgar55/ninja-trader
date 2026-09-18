@@ -1,9 +1,8 @@
 package service
 
 import (
-	"fmt"
-	"log"
-	models "ninja-trader/internal/model"
+  "log"
+  models "ninja-trader/internal/model"
 	"ninja-trader/internal/nse"
 	repo "ninja-trader/internal/repository"
 	"sync"
@@ -16,7 +15,7 @@ type InsiderTradesService struct {
 
 func (s *InsiderTradesService) StartInsiderTradeSync(from, to time.Time) {
 	log.Printf("Starting insider trade sync\n")
-	defer fmt.Println("Completed processing insider trade sync")
+  defer log.Println("Completed processing insider trade sync")
 
 	var detailsWg sync.WaitGroup
 	defer detailsWg.Wait()
