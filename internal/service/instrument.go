@@ -102,7 +102,7 @@ func (service *InstrumentService) ProcessInstrument(instru *tradingClient.Instru
 func (s *InstrumentService) SyncShorts(from, to time.Time) error {
 	// TODO: implement short trades sync logic for date range
 
-	log.Printf("SyncShorts called for range %s to %s", from.Format("2006-01-02"), to.Format("2006-01-02"))
+	log.Printf("SyncShorts called for range %s to %s\n", from.Format("2006-01-02"), to.Format("2006-01-02"))
 	processWorkers := 2
 	var processWg sync.WaitGroup
 	processChan := make(chan []nse.ShortTrade, 100)

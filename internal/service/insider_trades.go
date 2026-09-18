@@ -15,7 +15,7 @@ type InsiderTradesService struct {
 }
 
 func (s *InsiderTradesService) StartInsiderTradeSync(from, to time.Time) {
-	log.Printf("Starting insider trade sync")
+	log.Printf("Starting insider trade sync\n")
 	defer fmt.Println("Completed processing insider trade sync")
 
 	var detailsWg sync.WaitGroup
@@ -49,14 +49,14 @@ func (s *InsiderTradesService) StartInsiderTradeSync(from, to time.Time) {
 		insiderTrades, err := nse.GetInsideTrades(d, toCurr)
 		log.Printf("Fetched trades: %d\n", len(insiderTrades))
 		if err != nil {
-			log.Printf("Error processing insider trades for date %v, %v\n", d, err)
+			log.Printf("Error processing insider trades for date %s, %v\n", d, err)
 			return
 		}
 		for _, trade := range insiderTrades {
 			detailsChan <- trade
 		}
 	}
-	log.Printf("Completed fetching all the insiderTrades from nse")
+	log.Printf("Completed fetching all the insiderTrades from nse\n")
 	close(detailsChan)
 
 }

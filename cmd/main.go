@@ -22,8 +22,8 @@ import (
 )
 
 func main() {
-	fmt.Println("NumCPU:", runtime.NumCPU())
-	fmt.Println("GOMAXPROCS:", runtime.GOMAXPROCS(0))
+  log.Println("NumCPU:", runtime.NumCPU())
+  log.Println("GOMAXPROCS:", runtime.GOMAXPROCS(0))
 	err := godotenv.Load(".env")
 
 	if os.Getenv("PROF") == "1" {
