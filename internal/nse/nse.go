@@ -602,8 +602,8 @@ func GetInsideTrades(from, to time.Time) ([]InsideTrade, error) {
 		}
 		toStr := toCurr.Format("02-01-2006")
 		url := fmt.Sprintf("https://www.nseindia.com/api/corporates-pit?index=equities&from_date=%s&to_date=%s", dateFrom, toStr)
-    log.Printf("Calling: %s\n", url)
-    method := "GET"
+		log.Printf("Calling: %s\n", url)
+		method := "GET"
 		req, err := http.NewRequest(method, url, nil)
 		if err != nil {
 			return nil, err
@@ -711,7 +711,7 @@ func GetBulkBlockDeals(from, to time.Time, dealType models.DealType) ([]BulkBloc
 		}
 		req.Header.Add("Accept", "*/*")
 		req.Header.Add("User-Agent", "PostmanRuntime/7.51.1")
-    log.Printf("Calling: %s\n", url)
+		log.Printf("Calling: %s\n", url)
 		res, err := nseHTTPClient.Do(req)
 		if err != nil {
 			return nil, err
@@ -726,7 +726,7 @@ func GetBulkBlockDeals(from, to time.Time, dealType models.DealType) ([]BulkBloc
 		resBody, err := skipBOM(res.Body)
 
 		if err = gocsv.Unmarshal(resBody, &intResult); err != nil {
-      log.Printf("Error unmarshalling csv response: %v\n", err)
+			log.Printf("Error unmarshalling csv response: %v\n", err)
 			return nil, err
 		}
 

@@ -30,10 +30,10 @@ func formatIndianNumber(n float64) string {
 }
 
 type InstrumentHandler struct {
-  Repo      repo.InstrumentRepo
-  TradeRepo repo.TradeRepo
-  Service   *service.InstrumentService
-  Tmpl      *template.Template
+	Repo      repo.InstrumentRepo
+	TradeRepo repo.TradeRepo
+	Service   *service.InstrumentService
+	Tmpl      *template.Template
 }
 
 func (h *InstrumentHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -115,28 +115,28 @@ func (h *InstrumentHandler) Detail(w http.ResponseWriter, r *http.Request) {
 		adjCh <- adjacentResult{p, n}
 	}()
 
-  fullName := ""
-  watchlist := false
-  marketCap := ""
-  basicIndustry := ""
-  index := ""
-  holding := 0
-  needsAdjustment := false
-  isFnoSec := false
-  var deliveryPct float32
-  var updatedAt time.Time
-  var pctFrom52WLow float64
-  tag := ""
-  if inst, err := h.Repo.GetInstrumentBySymbol(symbol); err == nil {
+	fullName := ""
+	watchlist := false
+	marketCap := ""
+	basicIndustry := ""
+	index := ""
+	holding := 0
+	needsAdjustment := false
+	isFnoSec := false
+	var deliveryPct float32
+	var updatedAt time.Time
+	var pctFrom52WLow float64
+	tag := ""
+	if inst, err := h.Repo.GetInstrumentBySymbol(symbol); err == nil {
 		fullName = inst.InstrumentFullName
 		watchlist = inst.Watchlist
 		marketCap = formatIndianNumber(inst.MarketCap)
 		basicIndustry = inst.BasicIndustry
 		index = inst.Index
 		updatedAt = inst.UpdatedAt
-    needsAdjustment = inst.NeedsAdjsutment
-    isFnoSec = inst.IsFnoSec
-    tag = inst.Tag
+		needsAdjustment = inst.NeedsAdjsutment
+		isFnoSec = inst.IsFnoSec
+		tag = inst.Tag
 		if trade, err := h.TradeRepo.GetHoldingByInstrumentID(inst.ID); err == nil {
 			holding = trade
 		}
@@ -173,16 +173,16 @@ func (h *InstrumentHandler) Detail(w http.ResponseWriter, r *http.Request) {
 		FromRange          bool
 		Holding            int
 		LastUpdated        string
-    NeedsAdjustment    bool
-    IsFnoSec           bool
-    DeliveryPercentage float32
-    PctFrom52WLow      float64
-    Tag                string
-    TagOptions         []string
-    Sort               string
-    Order              string
-    Date               string
-  }{symbol, fullName, marketCap, basicIndustry, index, r.URL.Query().Get("msg"), tmplPeriod, prev, next, watchlist, watchlistOnly, fromRange, holding, lastUpdated, needsAdjustment, isFnoSec, deliveryPct, pctFrom52WLow, tag, []string{"oversold", "touch", "scoop", "overbought", "repel", "horizontal", "breakout"}, sort, order, date}); err != nil {
+		NeedsAdjustment    bool
+		IsFnoSec           bool
+		DeliveryPercentage float32
+		PctFrom52WLow      float64
+		Tag                string
+		TagOptions         []string
+		Sort               string
+		Order              string
+		Date               string
+	}{symbol, fullName, marketCap, basicIndustry, index, r.URL.Query().Get("msg"), tmplPeriod, prev, next, watchlist, watchlistOnly, fromRange, holding, lastUpdated, needsAdjustment, isFnoSec, deliveryPct, pctFrom52WLow, tag, []string{"oversold", "touch", "scoop", "overbought", "repel", "horizontal", "breakout"}, sort, order, date}); err != nil {
 		log.Printf("Template error instrument_detail.html: %v", err)
 	}
 }
@@ -721,4 +721,3 @@ func (h *InstrumentHandler) NotesPage(w http.ResponseWriter, r *http.Request) {
 		Total  int
 	}{groups, len(views)})
 }
-

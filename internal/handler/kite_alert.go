@@ -107,16 +107,16 @@ func (h *KiteAlertHandler) Sync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-  for _, a := range alerts {
-    h.Repo.Upsert(&models.KiteAlert{
-      AlertID:       a.UUID,
-      TradingSymbol: a.LHSTradingSymbol,
-      Exchange:      a.LHSExchange,
-      Operator:      a.Operator,
-      TriggerValue:  a.RHSConstant,
-      Status:        a.Status,
-    })
-  }
+	for _, a := range alerts {
+		h.Repo.Upsert(&models.KiteAlert{
+			AlertID:       a.UUID,
+			TradingSymbol: a.LHSTradingSymbol,
+			Exchange:      a.LHSExchange,
+			Operator:      a.Operator,
+			TriggerValue:  a.RHSConstant,
+			Status:        a.Status,
+		})
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{"ok": true, "count": len(alerts)})

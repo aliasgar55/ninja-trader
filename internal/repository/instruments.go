@@ -45,7 +45,7 @@ type InstrumentWithHolding struct {
 	DeliveryValue      float64
 	VolRatio           float64
 	Range3M            float64 `gorm:"column:range_3m"`
-	PctFrom52WLow     float64 `gorm:"column:pct_from_52w_low"`
+	PctFrom52WLow      float64 `gorm:"column:pct_from_52w_low"`
 	PctChange          float64 `gorm:"column:pct_change"`
 }
 
@@ -61,25 +61,25 @@ func (repo *InstrumentRepo) withHoldingQuery() *gorm.DB {
 }
 
 var allowedSortColumns = map[string]string{
-	"symbol":         "instruments.trading_symbol",
-	"market_cap":     "instruments.market_cap",
-	"industry":       "instruments.basic_industry",
-	"index":          "instruments.\"index\"",
-	"price_band":     "instruments.price_band",
-	"delivery_pct":   "delivery_percentage",
-	"tag":            "instruments.tag",
-	"holding":        "holding",
-	"name":           "instruments.instrument_full_name",
-	"active":         "instruments.active",
-	"vpt":            "volume_per_trade",
-	"vpt_score":      "vpt_score",
-	"divergence":     "divergence",
-	"delivery_value": "delivery_value",
-  "vol_ratio":      "vol_ratio",
-  "range_3m":       "range_3m",
+	"symbol":           "instruments.trading_symbol",
+	"market_cap":       "instruments.market_cap",
+	"industry":         "instruments.basic_industry",
+	"index":            "instruments.\"index\"",
+	"price_band":       "instruments.price_band",
+	"delivery_pct":     "delivery_percentage",
+	"tag":              "instruments.tag",
+	"holding":          "holding",
+	"name":             "instruments.instrument_full_name",
+	"active":           "instruments.active",
+	"vpt":              "volume_per_trade",
+	"vpt_score":        "vpt_score",
+	"divergence":       "divergence",
+	"delivery_value":   "delivery_value",
+	"vol_ratio":        "vol_ratio",
+	"range_3m":         "range_3m",
 	"pct_from_52w_low": "pct_from_52w_low",
-  "pct_change":       "pct_change",
-  "is_fno_sec":       "instruments.is_fno_sec",
+	"pct_change":       "pct_change",
+	"is_fno_sec":       "instruments.is_fno_sec",
 }
 
 func buildSortOrder(sort, order string) string {
@@ -188,13 +188,13 @@ func buildRangeSortOrder(sort, order string) string {
 func (repo *InstrumentRepo) GetInstrumentsWithRange(query, sort, order string) ([]InstrumentWithRange, error) {
 	var results []InstrumentWithRange
 	q := repo.Db.Model(&models.Instrument{}).
-    Select(`instruments.*,
+		Select(`instruments.*,
       COALESCE(r1.range_pct, 0) AS range_1m,
       COALESCE(r3.range_pct, 0) AS range_3m,
       COALESCE(r6.range_pct, 0) AS range_6m,
       COALESCE(r12.range_pct, 0) AS range_1y,
       COALESCE(hd.vpt_score, 0) AS vpt_score`).
-    Joins(`LEFT JOIN historicaldata hd ON hd.symbol = instruments.trading_symbol AND hd.date = (SELECT MAX(h2.date) FROM historicaldata h2 WHERE h2.symbol = instruments.trading_symbol)`).
+		Joins(`LEFT JOIN historicaldata hd ON hd.symbol = instruments.trading_symbol AND hd.date = (SELECT MAX(h2.date) FROM historicaldata h2 WHERE h2.symbol = instruments.trading_symbol)`).
 		Joins(`LEFT JOIN LATERAL (
 			SELECT (MAX(adjusted_close_price) - MIN(adjusted_close_price)) / NULLIF(MIN(adjusted_close_price), 0) * 100 AS range_pct
 			FROM historicaldata WHERE symbol = instruments.trading_symbol AND date >= NOW() - INTERVAL '30 days'
@@ -215,8 +215,8 @@ func (repo *InstrumentRepo) GetInstrumentsWithRange(query, sort, order string) (
 	if query != "" {
 		q = q.Where("instruments.trading_symbol ILIKE ?", "%"+query+"%")
 	}
-  err := q.Order(buildRangeSortOrder(sort, order)).Scan(&results).Error
-  return results, err
+	err := q.Order(buildRangeSortOrder(sort, order)).Scan(&results).Error
+	return results, err
 }
 
 func (repo *InstrumentRepo) GetAdjacentRangeSymbols(symbol, sort, order string) (prev, next string) {
@@ -569,17 +569,17 @@ func (repo *InstrumentRepo) UpdateInstrument(instrument *models.Instrument) erro
 }
 
 func (repo *InstrumentRepo) ToggleWatchlist(symbol string) (bool, error) {
-  instrument, err := repo.GetInstrumentBySymbol(symbol)
-  if err != nil {
-    return false, err
-  }
-  newState := !instrument.Watchlist
-  updates := map[string]interface{}{"watchlist": newState}
-  if newState {
-    updates["watch_list_date"] = time.Now()
-  }
-  err = repo.Db.Model(instrument).Updates(updates).Error
-  return newState, err
+	instrument, err := repo.GetInstrumentBySymbol(symbol)
+	if err != nil {
+		return false, err
+	}
+	newState := !instrument.Watchlist
+	updates := map[string]interface{}{"watchlist": newState}
+	if newState {
+		updates["watch_list_date"] = time.Now()
+	}
+	err = repo.Db.Model(instrument).Updates(updates).Error
+	return newState, err
 }
 
 func (repo *InstrumentRepo) GetWatchlistInstruments() ([]models.Instrument, error) {
@@ -696,7 +696,7 @@ func (repo *InstrumentRepo) GetLatestSignals() (map[string][3]float64, error) {
 		Symbol     string
 		VptScore   float64
 		Divergence float64
-		VolumeMa20     float64
+		VolumeMa20 float64
 	}
 	var rows []row
 	err := repo.Db.Raw(`SELECT h.symbol, h.vpt_score, h.divergence, h.volume_ma20 FROM historicaldata h

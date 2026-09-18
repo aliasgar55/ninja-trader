@@ -1,9 +1,9 @@
 package main
 
 import (
-  "context"
-  "html/template"
-  "log"
+	"context"
+	"html/template"
+	"log"
 	"net/http"
 	"ninja-trader/internal/database"
 	"ninja-trader/internal/handler"
@@ -21,8 +21,8 @@ import (
 )
 
 func main() {
-  log.Println("NumCPU:", runtime.NumCPU())
-  log.Println("GOMAXPROCS:", runtime.GOMAXPROCS(0))
+	log.Println("NumCPU:", runtime.NumCPU())
+	log.Println("GOMAXPROCS:", runtime.GOMAXPROCS(0))
 	err := godotenv.Load(".env")
 
 	if os.Getenv("PROF") == "1" {

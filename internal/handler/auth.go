@@ -28,7 +28,6 @@ type AuthHandler struct {
 	tokenExpiry time.Time
 }
 
-
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	loginURL := h.KiteClient.GetLoginURL()
 	http.Redirect(w, r, loginURL, http.StatusFound)
@@ -58,7 +57,7 @@ func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	h.userID = session.UserID
 
-  expiry := nextDaySixAMIST()
+	expiry := nextDaySixAMIST()
 	h.tokenExpiry = expiry
 
 	encToken, err := encrypt(session.AccessToken, h.APISecret)
@@ -141,7 +140,7 @@ func (h *AuthHandler) LoadSession() {
 
 	userID := h.getSetting("kite_user_id")
 
-  h.KiteClient.SetAccessToken(token)
+	h.KiteClient.SetAccessToken(token)
 	h.userID = userID
 	h.tokenExpiry = expiry
 

@@ -1,4 +1,5 @@
 package models
+
 import "gorm.io/gorm"
 
 type AppSetting struct {

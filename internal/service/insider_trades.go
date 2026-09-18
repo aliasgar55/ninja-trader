@@ -1,8 +1,8 @@
 package service
 
 import (
-  "log"
-  models "ninja-trader/internal/model"
+	"log"
+	models "ninja-trader/internal/model"
 	"ninja-trader/internal/nse"
 	repo "ninja-trader/internal/repository"
 	"sync"
@@ -15,7 +15,7 @@ type InsiderTradesService struct {
 
 func (s *InsiderTradesService) StartInsiderTradeSync(from, to time.Time) {
 	log.Printf("Starting insider trade sync\n")
-  defer log.Println("Completed processing insider trade sync")
+	defer log.Println("Completed processing insider trade sync")
 
 	var detailsWg sync.WaitGroup
 	defer detailsWg.Wait()
@@ -30,14 +30,13 @@ func (s *InsiderTradesService) StartInsiderTradeSync(from, to time.Time) {
 					log.Fatalf("Error mapping nse inside trade to db model: err: %v\n", err)
 				}
 				err = s.InsiderTradeRepo.CreateInsiderTrade(insideTradeTxn, &insideTradeEntity)
-				if err != nil  {
+				if err != nil {
 					log.Printf("Error saving insider trade to db, FilingId: %d\n, transactionDate: %v", insideTradeTxn.FilingID, insideTradeTxn.TransactionDate)
 				}
 
 			}
 		})
 	}
-
 
 	for d := from; !d.After(to); d = d.AddDate(1, 0, 0) {
 		toCurr := d.AddDate(1, 0, 0)
@@ -67,4 +66,3 @@ func (s *InsiderTradesService) GetTradesBySymbol(symbol string) ([]models.Inside
 func (s *InsiderTradesService) GetAllTrades(limit, offset int) ([]models.InsiderTradeWithEntity, int64, error) {
 	return s.InsiderTradeRepo.GetAll(limit, offset)
 }
-

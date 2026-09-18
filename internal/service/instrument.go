@@ -150,7 +150,7 @@ func (s *InstrumentService) SyncTradeHistory(symbol string, from time.Time, to t
 	workers := uint8(5)
 	tradeData, err := nse.GetHistoricalData(symbol, "EQ", from, to)
 	if err != nil {
-    log.Printf("Error fetching nse data from symbol: %s, %v, %v, %v\n", symbol, from, to, err)
+		log.Printf("Error fetching nse data from symbol: %s, %v, %v, %v\n", symbol, from, to, err)
 
 	}
 	for range workers {
@@ -251,7 +251,7 @@ func (s *InstrumentService) SyncSplitAndDividend(symbol string, minDate, maxDate
 
 	err = s.InstruRepo.BulkInsertEvents(dbList)
 	if err != nil {
-    log.Printf("Error inserting events to the database error: %v\n", err)
+		log.Printf("Error inserting events to the database error: %v\n", err)
 		return err
 	}
 	return nil
@@ -261,7 +261,7 @@ func (s *InstrumentService) SyncSplitAndDividend(symbol string, minDate, maxDate
 func (s *InstrumentService) ProcessTradeHistory(trades []models.Historicaldata) error {
 	err := s.InstruRepo.BulkInsertTradeHistory(trades)
 	if err != nil {
-    log.Println("Error saving trade history to the database")
+		log.Println("Error saving trade history to the database")
 		return err
 	}
 	return nil
@@ -325,7 +325,7 @@ func (s *InstrumentService) ProcessDailyData(symbol string) error {
 
 	syncEndDate := time.Now()
 	log.Printf("ProcessDailyData [%s] syncing trade history from %s to %s\n", symbol, syncStartDate.Format("2006-01-02"), syncEndDate.Format("2006-01-02"))
-	metaData,err := nse.GetMetaData(symbol)
+	metaData, err := nse.GetMetaData(symbol)
 	series, err := metaData.GetActiveSeries()
 	if err != nil {
 		return fmt.Errorf("Error syncing symbol: %s, due to series not found, err: %s\n", symbol, err)
@@ -388,7 +388,7 @@ func (s *InstrumentService) ProcessDailyData(symbol string) error {
 	log.Printf("ProcessDailyData completed for %s\n", symbol)
 
 	if err := s.ComputeSignals(symbol); err != nil {
-    log.Println("Calling compute signal")
+		log.Println("Calling compute signal")
 		log.Printf("ProcessDailyData [%s] error computing signals: %v\n", symbol, err)
 	}
 
@@ -471,47 +471,47 @@ func (s *InstrumentService) ComputeSignals(symbol string) error {
 			return d.AdjustedClosePrice
 		})
 
-    // Compute VPT MA20 z-score over window (only valid entries where i >= 19)
-    validStart := startIdx
-    if validStart < 19 {
-      validStart = 19
-    }
-    vptZ[i] = zScoreSlice(vptMa20, validStart, i)
+		// Compute VPT MA20 z-score over window (only valid entries where i >= 19)
+		validStart := startIdx
+		if validStart < 19 {
+			validStart = 19
+		}
+		vptZ[i] = zScoreSlice(vptMa20, validStart, i)
 	}
 
-  // Compute VPT score as percentage of rolling 3-year max VPT MA20, and divergence
-  vptScore := make([]float64, len(data))
-  divergence := make([]float64, len(data))
-  for i := range data {
-    if i < 19 {
-      continue
-    }
-    // Find rolling window start
-    windowStart := data[i].Date.AddDate(0, 0, -rollingWindowDays)
-    startIdx := i
-    for startIdx > 0 && data[startIdx-1].Date.After(windowStart) {
-      startIdx--
-    }
-    validStart := startIdx
-    if validStart < 19 {
-      validStart = 19
-    }
-    // Find min and max VPT MA20 in the window
-    minVpt := math.Inf(1)
-    maxVpt := math.Inf(-1)
-    for j := validStart; j <= i; j++ {
-      if vptMa20[j] < minVpt {
-        minVpt = vptMa20[j]
-      }
-      if vptMa20[j] > maxVpt {
-        maxVpt = vptMa20[j]
-      }
-    }
-    if maxVpt > minVpt {
-      vptScore[i] = (vptMa20[i] - minVpt) / (maxVpt - minVpt) * 100.0
-    }
-    divergence[i] = vptZ[i] - priceZ[i]
-  }
+	// Compute VPT score as percentage of rolling 3-year max VPT MA20, and divergence
+	vptScore := make([]float64, len(data))
+	divergence := make([]float64, len(data))
+	for i := range data {
+		if i < 19 {
+			continue
+		}
+		// Find rolling window start
+		windowStart := data[i].Date.AddDate(0, 0, -rollingWindowDays)
+		startIdx := i
+		for startIdx > 0 && data[startIdx-1].Date.After(windowStart) {
+			startIdx--
+		}
+		validStart := startIdx
+		if validStart < 19 {
+			validStart = 19
+		}
+		// Find min and max VPT MA20 in the window
+		minVpt := math.Inf(1)
+		maxVpt := math.Inf(-1)
+		for j := validStart; j <= i; j++ {
+			if vptMa20[j] < minVpt {
+				minVpt = vptMa20[j]
+			}
+			if vptMa20[j] > maxVpt {
+				maxVpt = vptMa20[j]
+			}
+		}
+		if maxVpt > minVpt {
+			vptScore[i] = (vptMa20[i] - minVpt) / (maxVpt - minVpt) * 100.0
+		}
+		divergence[i] = vptZ[i] - priceZ[i]
+	}
 
 	// Compute 3-year rolling max divergence
 	divMax3y := make([]float64, len(data))
@@ -544,7 +544,7 @@ func (s *InstrumentService) ComputeSignals(symbol string) error {
 			VptScore:        vptScore[i],
 			Divergence:      divergence[i],
 			DivergenceMax3y: divMax3y[i],
-			VolumeMa20: volumeMa20[i],
+			VolumeMa20:      volumeMa20[i],
 		})
 	}
 
@@ -600,5 +600,5 @@ func zScoreSlice(slice []float64, start, end int) float64 {
 	if variance <= 0 {
 		return 0
 	}
-  return (slice[end] - mean) / math.Sqrt(variance)
+	return (slice[end] - mean) / math.Sqrt(variance)
 }

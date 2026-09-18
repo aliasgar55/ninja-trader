@@ -222,4 +222,3 @@ func (h *AdminHandler) SyncBulkBlockDeals(w http.ResponseWriter, r *http.Request
 	go h.BBService.StartBulkBlockDealSyncWithoutDate()
 	http.Redirect(w, r, "/admin?msg=sync_bulk_block_started", http.StatusSeeOther)
 }
-

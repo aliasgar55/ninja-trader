@@ -10,8 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	kiteticker "github.com/zerodha/gokiteconnect/v4/ticker"
 	kitemodels "github.com/zerodha/gokiteconnect/v4/models"
+	kiteticker "github.com/zerodha/gokiteconnect/v4/ticker"
 )
 
 // TickData holds the latest tick for an instrument.
@@ -37,11 +37,11 @@ type BreadthSnapshot struct {
 
 // AlertEntry records a triggered alert.
 type AlertEntry struct {
-	Time     time.Time
-	Type     string // "PRICE" or "VOLUME"
-	Symbol   string
-	Price    float64
-	Message  string
+	Time    time.Time
+	Type    string // "PRICE" or "VOLUME"
+	Symbol  string
+	Price   float64
+	Message string
 }
 
 // Service manages the Kite WebSocket ticker connection.
@@ -59,11 +59,11 @@ type Service struct {
 	mu     sync.Mutex
 	cancel context.CancelFunc
 
-  // Breadth tracking: count of instruments up 2%+ from day's low
-  breadthFlags   sync.Map     // map[uint32]bool
-  breadthCount   atomic.Int64
-  breadthHistory []BreadthSnapshot
-  breadthMu      sync.Mutex
+	// Breadth tracking: count of instruments up 2%+ from day's low
+	breadthFlags   sync.Map // map[uint32]bool
+	breadthCount   atomic.Int64
+	breadthHistory []BreadthSnapshot
+	breadthMu      sync.Mutex
 }
 
 // New creates a new ticker service.
@@ -247,12 +247,12 @@ func (s *Service) handleTick(tick kitemodels.Tick) {
 		s.breadthCount.Add(-1)
 	}
 
-  // Run alerts
-  for _, alert := range s.alerts {
-    if entry := alert.Check(tick.InstrumentToken, td); entry != nil {
-      s.AddAlert(*entry)
-    }
-  }
+	// Run alerts
+	for _, alert := range s.alerts {
+		if entry := alert.Check(tick.InstrumentToken, td); entry != nil {
+			s.AddAlert(*entry)
+		}
+	}
 }
 
 // SymbolForToken returns the trading symbol for a given instrument token.

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	models "ninja-trader/internal/model"
-
 )
 
 var bseHTTPClient = &http.Client{
@@ -21,7 +20,6 @@ var bseHTTPClient = &http.Client{
 	},
 	Timeout: 15 * time.Second,
 }
-
 
 type InsideTradesRoot struct {
 	AcqNameList []string      `json:"acqNameList"`
@@ -140,7 +138,7 @@ func GetInsideTrades(from, to time.Time) ([]InsideTrade, error) {
 		}
 		toStr := toCurr.Format("02-01-2006")
 		url := fmt.Sprintf("https://www.nseindia.com/api/corporates-pit?index=equities&from_date=%s&to_date=%s", dateFrom, toStr)
-    log.Printf("Calling: %s\n", url)
+		log.Printf("Calling: %s\n", url)
 		method := "GET"
 		req, err := http.NewRequest(method, url, nil)
 		if err != nil {
@@ -162,4 +160,3 @@ func GetInsideTrades(from, to time.Time) ([]InsideTrade, error) {
 	}
 	return combinedResult, nil
 }
-

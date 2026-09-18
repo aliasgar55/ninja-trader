@@ -1,8 +1,8 @@
 package service
 
 import (
-  "log"
-  models "ninja-trader/internal/model"
+	"log"
+	models "ninja-trader/internal/model"
 	"ninja-trader/internal/nse"
 	repo "ninja-trader/internal/repository"
 	"sync"
@@ -37,7 +37,7 @@ func (s *BBService) StartBulkBlockDealSyncWithoutDate() {
 
 func (s *BBService) startBulkBlockDealSync(from, to time.Time, dealType models.DealType) {
 	log.Printf("Starting %s trade sync\n", string(dealType))
-  defer log.Printf("Completed processing %s deals\n", string(dealType))
+	defer log.Printf("Completed processing %s deals\n", string(dealType))
 
 	var detailsWg sync.WaitGroup
 	defer detailsWg.Wait()
@@ -63,7 +63,7 @@ func (s *BBService) startBulkBlockDealSync(from, to time.Time, dealType models.D
 	log.Printf("Getting %s trades from: %s, to: %s\n", string(dealType), from, to)
 	blockDeals, err := nse.GetBulkBlockDeals(from, to, dealType)
 	if err != nil {
-		log.Printf("Error processing %s trades for date %s, %s, error: %v\n",string(dealType), from, to, err)
+		log.Printf("Error processing %s trades for date %s, %s, error: %v\n", string(dealType), from, to, err)
 		return
 	}
 	log.Printf("Fetched %s deal: %d\n", string(dealType), len(blockDeals))

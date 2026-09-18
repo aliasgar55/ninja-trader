@@ -73,5 +73,3 @@ func TestSplitDateRangeByYear_JustOverOneYear(t *testing.T) {
 		t.Errorf("range 1: expected [2025-01-01, 2025-01-02], got [%v, %v]", ranges[1][0], ranges[1][1])
 	}
 }
-
-

@@ -19,12 +19,12 @@ type InstrumentInfo struct {
 	Volume20Ma float64
 	Divergence float64
 }
-    const (
-        colorGreen = "\033[32m"
-        colorBlue  = "\033[34m"
-        colorReset = "\033[0m"
-    )
 
+const (
+	colorGreen = "\033[32m"
+	colorBlue  = "\033[34m"
+	colorReset = "\033[0m"
+)
 
 // Alert is the interface for tick-based alert checks.
 type Alert interface {
@@ -92,24 +92,24 @@ func (a *PriceAlert) Check(token uint32, tick *TickData) *AlertEntry {
 		}
 		a.mu.Unlock()
 
-    if shouldAlert {
-      sym := info.Symbol
-      if sym == "" {
-        sym = "unknown"
-      }
-      label := "NEW"
-      moveStr := "new"
-      if seen {
-        pctMove := (tick.LastPrice - lastPrice) / lastPrice * 100
-        if pctMove > 0 {
-          label = fmt.Sprintf("+%.1f%%", pctMove)
-        } else {
-          label = fmt.Sprintf("%.1f%%", pctMove)
-        }
-        moveStr = fmt.Sprintf("%+.1f%%", pctMove)
-      }
-      msg := fmt.Sprintf("%s | %s | up: %.1f%% | vol: %.1fx | vpt: %.0f | div: %.2f | %.2f | b/s: %.2f | %s",
-        sym, moveStr, pctFromLow*100, volumeMultiplier, info.VptScore, info.Divergence, tick.LastPrice, ratio, info.Industry)
+		if shouldAlert {
+			sym := info.Symbol
+			if sym == "" {
+				sym = "unknown"
+			}
+			label := "NEW"
+			moveStr := "new"
+			if seen {
+				pctMove := (tick.LastPrice - lastPrice) / lastPrice * 100
+				if pctMove > 0 {
+					label = fmt.Sprintf("+%.1f%%", pctMove)
+				} else {
+					label = fmt.Sprintf("%.1f%%", pctMove)
+				}
+				moveStr = fmt.Sprintf("%+.1f%%", pctMove)
+			}
+			msg := fmt.Sprintf("%s | %s | up: %.1f%% | vol: %.1fx | vpt: %.0f | div: %.2f | %.2f | b/s: %.2f | %s",
+				sym, moveStr, pctFromLow*100, volumeMultiplier, info.VptScore, info.Divergence, tick.LastPrice, ratio, info.Industry)
 			log.Printf("%s[ALERT %s] %s%s", colorBlue, label, msg, colorReset)
 			exec.Command("osascript", "-e", fmt.Sprintf(`display notification "%s" with title "Ninja Trader" sound name "Glass"`, msg)).Start()
 			return &AlertEntry{
@@ -142,23 +142,23 @@ func (a *VolumeAlert) Check(token uint32, tick *TickData) *AlertEntry {
 		}
 		a.mu.Unlock()
 
-    if shouldAlert {
-      sym := info.Symbol
-      if sym == "" {
-        sym = "unknown"
-      }
-      label := "NEW"
-      moveStr := "new"
-      if seen {
-        label = fmt.Sprintf("+%.1fx", subsequentIncrease)
-        moveStr = fmt.Sprintf("+%.1fx", subsequentIncrease)
-      }
-      dayChange := 0.0
-      if tick.Close > 0 {
-        dayChange = (tick.LastPrice - tick.Close) / tick.Close * 100
-      }
-      msg := fmt.Sprintf("%s | %+.1f%% | vol: %.1fx (%s) | price: %.2f | vpt: %.0f | div: %.2f | %s",
-        sym, dayChange, volumeMultiplier, moveStr, tick.LastPrice, info.VptScore, info.Divergence, info.Industry)
+		if shouldAlert {
+			sym := info.Symbol
+			if sym == "" {
+				sym = "unknown"
+			}
+			label := "NEW"
+			moveStr := "new"
+			if seen {
+				label = fmt.Sprintf("+%.1fx", subsequentIncrease)
+				moveStr = fmt.Sprintf("+%.1fx", subsequentIncrease)
+			}
+			dayChange := 0.0
+			if tick.Close > 0 {
+				dayChange = (tick.LastPrice - tick.Close) / tick.Close * 100
+			}
+			msg := fmt.Sprintf("%s | %+.1f%% | vol: %.1fx (%s) | price: %.2f | vpt: %.0f | div: %.2f | %s",
+				sym, dayChange, volumeMultiplier, moveStr, tick.LastPrice, info.VptScore, info.Divergence, info.Industry)
 			log.Printf("%s[VOLUME %s] %s%s", colorGreen, label, msg, colorReset)
 			exec.Command("osascript", "-e", fmt.Sprintf(`display notification "%s" with title "Ninja Trader" sound name "Glass"`, msg)).Start()
 			return &AlertEntry{

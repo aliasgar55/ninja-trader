@@ -16,7 +16,7 @@ func SplitDateRangeByYear(from, to time.Time) []DateRange {
 	}
 	for d := from; !d.After(to); d = d.AddDate(1, 0, 0) {
 		toCurr := d.AddDate(1, 0, -1)
-		if toCurr.After(to){
+		if toCurr.After(to) {
 			toCurr = to
 		}
 		ranges = append(ranges, DateRange{d, toCurr})
