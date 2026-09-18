@@ -8,12 +8,23 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	models "ninja-trader/internal/model"
 
 	"github.com/gocarina/gocsv"
 )
+
+var nseHTTPClient = &http.Client{
+	Transport: &http.Transport{
+		Proxy:               http.ProxyFromEnvironment,
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 20,
+		IdleConnTimeout:     90 * time.Second,
+	},
+	Timeout: 15 * time.Second,
+}
 
 type EquityRoot struct {
 	EquityResponse []EquityResponse `json:"equityResponse"`
@@ -321,16 +332,6 @@ func (nse ShortTrade2) MapToShortModel() *models.Shorts {
 		Quantity:      int64(nse.Quantity),
 		Date:          time.Time(nse.TradeDate),
 	}
-}
-
-var nseHTTPClient = &http.Client{
-	Transport: &http.Transport{
-		Proxy:               http.ProxyFromEnvironment,
-		MaxIdleConns:        100,
-		MaxIdleConnsPerHost: 20,
-		IdleConnTimeout:     90 * time.Second,
-	},
-	Timeout: 15 * time.Second,
 }
 
 func GetNseDetails(symbol, segment string) (*EquityRoot, error) {
@@ -645,53 +646,62 @@ func (deal *BulkBlockDeals) MapToDb() (models.BulkBlockDeal, error) {
 		log.Printf("Error parsing date: %s\n", deal.BDDTDATE)
 		return models.BulkBlockDeal{}, err
 	}
+	trimedPrice := strings.ReplaceAll(deal.BDTPWATP, ",", "")
+	price, err := strconv.ParseFloat(trimedPrice, 64)
+	if err != nil {
+		log.Printf("Error parsing price: %s to float, err: %v\n", deal.BDTPWATP, err)
+		return models.BulkBlockDeal{}, err
+	}
+
+	trimedQty := strings.ReplaceAll(deal.BDQTYTRD, ",", "")
+	qty, err := strconv.ParseInt(trimedQty, 10, 64)
+	if err != nil {
+		log.Printf("Error parsing quantity: %s to int, err: %v\n", deal.BDQTYTRD, err)
+		return models.BulkBlockDeal{}, err
+	}
+
 	dbModel := models.BulkBlockDeal{
-		TradingSymbol: deal.BDSYMBOL,
-		ScripName:     deal.BDSCRIPNAME,
-		ClientName:    deal.BDCLIENTNAME,
-		BuySell:       deal.BDBUYSELL,
-		Quantity:      int64(deal.BDQTYTRD),
-		Price:         deal.BDTPWATP,
+		TradingSymbol: strings.TrimSpace(deal.BDSYMBOL),
+		ScripName:     strings.TrimSpace(deal.BDSCRIPNAME),
+		ClientName:    strings.TrimSpace(deal.BDCLIENTNAME),
+		BuySell:       strings.TrimSpace(deal.BDBUYSELL),
+		Quantity:      qty,
+		Price:         price,
 		Date:          date,
-		Remarks:       deal.BDREMARKS,
+		Remarks:       strings.TrimSpace(deal.BDREMARKS),
 		DealType:      string(deal.dealType),
 	}
 	return dbModel, nil
 
 }
 
-type BulkBlockDealsRoot struct {
-	Data []BulkBlockDeals `json:"data"`
-}
-
 type BulkBlockDeals struct {
-	BDDTDATE     string  `json:"BD_DT_DATE"`
-	BDDTORDER    string  `json:"BD_DT_ORDER"`
-	BDSYMBOL     string  `json:"BD_SYMBOL"`
-	BDSCRIPNAME  string  `json:"BD_SCRIP_NAME"`
-	BDCLIENTNAME string  `json:"BD_CLIENT_NAME"`
-	BDBUYSELL    string  `json:"BD_BUY_SELL"`
-	BDQTYTRD     int     `json:"BD_QTY_TRD"`
-	BDTPWATP     float64 `json:"BD_TP_WATP"`
-	BDREMARKS    string  `json:"BD_REMARKS"`
-  dealType     models.DealType
+	BDDTDATE     string `csv:"Date "`
+	BDSYMBOL     string `csv:"Symbol "`
+	BDSCRIPNAME  string `csv:"Security Name "`
+	BDCLIENTNAME string `csv:"Client Name "`
+	BDBUYSELL    string `csv:"Buy / Sell "`
+	BDQTYTRD     string `csv:"Quantity Traded "`
+	BDTPWATP     string `csv:"Trade Price / Wght. Avg. Price "`
+	BDREMARKS    string `csv:"Remarks "`
+	dealType     models.DealType
 }
 
 func GetBulkBlockDeals(from, to time.Time, dealType models.DealType) ([]BulkBlockDeals, error) {
-  dateRanges := SplitDateRangeByYear(from, to)
-  var result []BulkBlockDeals
-  var optionType string
+	dateRanges := SplitDateRangeByYear(from, to)
+	var result []BulkBlockDeals
+	var optionType string
 
-  if dealType == models.DealTypeBulk {
-    optionType = "bulk_deals"
-  } else if dealType == models.DealTypeBlock {
-    optionType = "block_deals"
-  }
+	if dealType == models.DealTypeBulk {
+		optionType = "bulk_deals"
+	} else if dealType == models.DealTypeBlock {
+		optionType = "block_deals"
+	}
 
 	for dateRange := range dateRanges {
 		dateFrom := dateRanges[dateRange][0].Format("02-01-2006")
 		dateTo := dateRanges[dateRange][1].Format("02-01-2006")
-		url := fmt.Sprintf("https://www.nseindia.com/api/historicalOR/bulk-block-short-deals?optionType=%s&from=%s&to=%s", optionType, dateFrom, dateTo)
+		url := fmt.Sprintf("https://www.nseindia.com/api/historicalOR/bulk-block-short-deals?optionType=%s&from=%s&to=%s&csv=true", optionType, dateFrom, dateTo)
 		method := "GET"
 
 		req, err := http.NewRequest(method, url, nil)
@@ -701,26 +711,32 @@ func GetBulkBlockDeals(from, to time.Time, dealType models.DealType) ([]BulkBloc
 		}
 		req.Header.Add("Accept", "*/*")
 		req.Header.Add("User-Agent", "PostmanRuntime/7.51.1")
-		fmt.Printf("Calling: %s: \n", url)
+		fmt.Printf("Calling: %s \n", url)
 		res, err := nseHTTPClient.Do(req)
 		if err != nil {
 			return nil, err
 		}
+		if res.StatusCode != http.StatusOK {
+			panic(fmt.Sprintf("API returned status: %s", res.Status))
+		}
+
 		defer res.Body.Close()
+		var intResult []BulkBlockDeals
 
-		var intResult BulkBlockDealsRoot
+		resBody, err := skipBOM(res.Body)
 
-		if err = json.NewDecoder(res.Body).Decode(&intResult); err != nil {
+		if err = gocsv.Unmarshal(resBody, &intResult); err != nil {
+			fmt.Println("Error unmarshalling csv response: ", err)
 			return nil, err
 		}
 
-		dealsList := intResult.Data
-
-		for r := range dealsList {
-			dealsList[r].dealType = dealType
+		log.Printf("Fetched %d %s deals from %s to %s\n", len(intResult), dealType, dateFrom, dateTo)
+		for r := range intResult {
+			intResult[r].dealType = dealType
 		}
-		result = append(result, dealsList...)
+		result = append(result, intResult...)
 	}
+	log.Printf("Fetched total %d %s deals from %s to %s\n", len(result), dealType, from.Format("02-01-2006"), to.Format("02-01-2006"))
 	return result, nil
 
 }

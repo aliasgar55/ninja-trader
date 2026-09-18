@@ -31,14 +31,14 @@ func (s *BBService) StartBulkBlockDealSyncWithoutDate() {
 		} else {
 			lastDate = lastDate.AddDate(0, 0, 1) // Start from the next day
 		}
-		go s.startBulkBlockDealSync(lastDate, time.Now(), dealType)
+		s.startBulkBlockDealSync(lastDate, time.Now(), dealType)
 	}
 
 }
 
 func (s *BBService) startBulkBlockDealSync(from, to time.Time, dealType models.DealType) {
 	log.Printf("Starting %s trade sync\n", string(dealType))
-	defer fmt.Println("Completed processing Bulk and block deals sync")
+	defer fmt.Printf("Completed processing %s deals\n", string(dealType))
 
 	var detailsWg sync.WaitGroup
 	defer detailsWg.Wait()
@@ -61,19 +61,17 @@ func (s *BBService) startBulkBlockDealSync(from, to time.Time, dealType models.D
 		})
 	}
 
-	log.Printf("Getting bulk block trades from: %v, to: %v\n", from, to)
+	log.Printf("Getting %s trades from: %s, to: %s\n", string(dealType), from, to)
 	blockDeals, err := nse.GetBulkBlockDeals(from, to, dealType)
-	log.Printf("Fetched %s deal: %d\n", string(dealType), len(blockDeals))
 	if err != nil {
-		log.Printf("Error processing block trades for date %v, %v, error: %v\n", from, to, err)
+		log.Printf("Error processing %s trades for date %s, %s, error: %v\n",string(dealType), from, to, err)
 		return
 	}
+	log.Printf("Fetched %s deal: %d\n", string(dealType), len(blockDeals))
 	for _, deal := range blockDeals {
 		dealsChan <- deal
 	}
-	log.Printf("Completed fetching all the block deals from nse")
 	close(dealsChan)
-
-	log.Printf("Completed fetching all the bulk deals from nse")
+	log.Printf("Completed fetching all the %s deals from nse\n", string(dealType))
 
 }
