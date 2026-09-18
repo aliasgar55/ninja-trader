@@ -16,11 +16,12 @@ import (
 )
 
 type AdminHandler struct {
-	Service *service.InstrumentService
+	Service             *service.InstrumentService
 	InsiderTradeService *service.InsiderTradesService
-	Ticker  *ticker.Service
-	Db      *gorm.DB
-	Tmpl    *template.Template
+	BBService           *service.BBService
+	Ticker              *ticker.Service
+	Db                  *gorm.DB
+	Tmpl                *template.Template
 }
 
 func (h *AdminHandler) Page(w http.ResponseWriter, r *http.Request) {
@@ -134,7 +135,7 @@ func (h *AdminHandler) ComputeSignals(w http.ResponseWriter, r *http.Request) {
 		wg.Wait()
 		log.Println("ComputeSignals backfill completed")
 	}()
-  http.Redirect(w, r, "/admin?msg=compute_signals_started", http.StatusSeeOther)
+	http.Redirect(w, r, "/admin?msg=compute_signals_started", http.StatusSeeOther)
 }
 
 func (h *AdminHandler) TickerStatus(w http.ResponseWriter, r *http.Request) {
@@ -195,22 +196,30 @@ func (h *AdminHandler) GetLastURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdminHandler) SyncInsiderTrades(w http.ResponseWriter, r *http.Request) {
-      if r.Method != http.MethodPost {
-        http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-        return
-      }
-      from, err := time.Parse("2006-01-02", r.FormValue("from"))
-      if err != nil {
-        http.Error(w, "invalid 'from' date", http.StatusBadRequest)
-        return
-      }
-      to, err := time.Parse("2006-01-02", r.FormValue("to"))
-      if err != nil {
-        http.Error(w, "invalid 'to' date", http.StatusBadRequest)
-        return
-      }
-      go h.InsiderTradeService.StartInsiderTradeSync(from, to)
-      http.Redirect(w, r, "/admin?msg=sync_insider_started", http.StatusSeeOther)
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	from, err := time.Parse("2006-01-02", r.FormValue("from"))
+	if err != nil {
+		http.Error(w, "invalid 'from' date", http.StatusBadRequest)
+		return
+	}
+	to, err := time.Parse("2006-01-02", r.FormValue("to"))
+	if err != nil {
+		http.Error(w, "invalid 'to' date", http.StatusBadRequest)
+		return
+	}
+	go h.InsiderTradeService.StartInsiderTradeSync(from, to)
+	http.Redirect(w, r, "/admin?msg=sync_insider_started", http.StatusSeeOther)
 }
 
+func (h *AdminHandler) SyncBulkBlockDeals(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	go h.BBService.StartBulkBlockDealSyncWithoutDate()
+	http.Redirect(w, r, "/admin?msg=sync_bulk_block_started", http.StatusSeeOther)
+}
 

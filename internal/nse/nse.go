@@ -249,7 +249,7 @@ type HistoricalTrade struct {
 type SymbolMetaData struct {
 	Symbol       string   `json:"symbol"`
 	ActiveSeries []string `json:"activeSeries"`
-	IsFNOSec     string     `json:"isFNOSec"`
+	IsFNOSec     string   `json:"isFNOSec"`
 	// CompanyName         string        `json:"companyName"`
 	// DebtSeries          []interface{} `json:"debtSeries"`
 	// IsCASec             string        `json:"isCASec"`
@@ -484,16 +484,6 @@ func GetHistoricalData(symbol, series string, from, to time.Time) ([]HistoricalT
 
 }
 
-/*
-func GetBulkDeal(symbol string, from, to time.Time) ([]BulkDeals, error) {
-	var comibnedData []BulkDeals
-	for d := from; !d.After(to); d = d.AddDate(1, 0, 0) {
-		url := fmt.Sprintf("https://www.nseindia.com/api/historicalOR/bulk-block-short-deals?optionType=bulk_deals&symbol=%s&from=26-07-2025&to=26-07-2026", symbol)
-	}
-
-}
-*/
-
 type InsideTradesRoot struct {
 	AcqNameList []string      `json:"acqNameList"`
 	Data        []InsideTrade `json:"data"`
@@ -642,4 +632,95 @@ type SymbolChange struct {
 func GetSymbolChanges() ([]SymbolChange, error) {
 	// TODO: fetch from NSE corporate actions API
 	return []SymbolChange{}, nil
+}
+
+func (deal *BulkBlockDeals) MapToDb() (models.BulkBlockDeal, error) {
+	date, err := time.Parse("02-Jan-2006", deal.BDDTDATE)
+
+	if date.After(time.Now()) {
+		log.Printf("Date is in the future: %s\n", deal.BDDTDATE)
+		return models.BulkBlockDeal{}, fmt.Errorf("Date is in the future: %s", deal.BDDTDATE)
+	}
+	if err != nil {
+		log.Printf("Error parsing date: %s\n", deal.BDDTDATE)
+		return models.BulkBlockDeal{}, err
+	}
+	dbModel := models.BulkBlockDeal{
+		TradingSymbol: deal.BDSYMBOL,
+		ScripName:     deal.BDSCRIPNAME,
+		ClientName:    deal.BDCLIENTNAME,
+		BuySell:       deal.BDBUYSELL,
+		Quantity:      int64(deal.BDQTYTRD),
+		Price:         deal.BDTPWATP,
+		Date:          date,
+		Remarks:       deal.BDREMARKS,
+		DealType:      string(deal.dealType),
+	}
+	return dbModel, nil
+
+}
+
+type BulkBlockDealsRoot struct {
+	Data []BulkBlockDeals `json:"data"`
+}
+
+type BulkBlockDeals struct {
+	BDDTDATE     string  `json:"BD_DT_DATE"`
+	BDDTORDER    string  `json:"BD_DT_ORDER"`
+	BDSYMBOL     string  `json:"BD_SYMBOL"`
+	BDSCRIPNAME  string  `json:"BD_SCRIP_NAME"`
+	BDCLIENTNAME string  `json:"BD_CLIENT_NAME"`
+	BDBUYSELL    string  `json:"BD_BUY_SELL"`
+	BDQTYTRD     int     `json:"BD_QTY_TRD"`
+	BDTPWATP     float64 `json:"BD_TP_WATP"`
+	BDREMARKS    string  `json:"BD_REMARKS"`
+  dealType     models.DealType
+}
+
+func GetBulkBlockDeals(from, to time.Time, dealType models.DealType) ([]BulkBlockDeals, error) {
+  dateRanges := SplitDateRangeByYear(from, to)
+  var result []BulkBlockDeals
+  var optionType string
+
+  if dealType == models.DealTypeBulk {
+    optionType = "bulk_deals"
+  } else if dealType == models.DealTypeBlock {
+    optionType = "block_deals"
+  }
+
+	for dateRange := range dateRanges {
+		dateFrom := dateRanges[dateRange][0].Format("02-01-2006")
+		dateTo := dateRanges[dateRange][1].Format("02-01-2006")
+		url := fmt.Sprintf("https://www.nseindia.com/api/historicalOR/bulk-block-short-deals?optionType=%s&from=%s&to=%s", optionType, dateFrom, dateTo)
+		method := "GET"
+
+		req, err := http.NewRequest(method, url, nil)
+
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Add("Accept", "*/*")
+		req.Header.Add("User-Agent", "PostmanRuntime/7.51.1")
+		fmt.Printf("Calling: %s: \n", url)
+		res, err := nseHTTPClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer res.Body.Close()
+
+		var intResult BulkBlockDealsRoot
+
+		if err = json.NewDecoder(res.Body).Decode(&intResult); err != nil {
+			return nil, err
+		}
+
+		dealsList := intResult.Data
+
+		for r := range dealsList {
+			dealsList[r].dealType = dealType
+		}
+		result = append(result, dealsList...)
+	}
+	return result, nil
+
 }
