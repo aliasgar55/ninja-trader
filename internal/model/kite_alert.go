@@ -4,10 +4,10 @@ import "gorm.io/gorm"
 
 type KiteAlert struct {
 	gorm.Model
-	AlertID       string  `gorm:"uniqueIndex"`
-	TradingSymbol string  `gorm:"index"`
+	AlertID       string `gorm:"uniqueIndex"`
+	TradingSymbol string `gorm:"index"`
 	Exchange      string
-	Operator      string  // >= or <=
+	Operator      string // >= or <=
 	TriggerValue  float64
-	Status        string  `gorm:"index"` // active, triggered, deleted
+	Status        string `gorm:"index"` // active, triggered, deleted
 }

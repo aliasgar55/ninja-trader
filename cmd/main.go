@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -22,8 +21,8 @@ import (
 )
 
 func main() {
-	fmt.Println("NumCPU:", runtime.NumCPU())
-	fmt.Println("GOMAXPROCS:", runtime.GOMAXPROCS(0))
+	log.Println("NumCPU:", runtime.NumCPU())
+	log.Println("GOMAXPROCS:", runtime.GOMAXPROCS(0))
 	err := godotenv.Load(".env")
 
 	if os.Getenv("PROF") == "1" {
@@ -69,24 +68,17 @@ func main() {
 		&models.KiteAlert{},
 		&models.InsiderTradeTransaction{},
 		&models.InsiderTradeEntity{},
+		&models.BulkBlockDeal{},
 	)
 
 	instrumentRepo := repo.InstrumentRepo{Db: db}
 	tradeRepo := repo.TradeRepo{Db: db}
 	insideTradesRepo := repo.InsiderTradesRepo{Db: db}
-	instrumentService := &service.InstrumentService{InstruRepo: instrumentRepo}
-	tradeService := &service.TradeService{TradeRepo: tradeRepo, InstruRepo: instrumentRepo}
-	insideTradesService := &service.InsiderTradesService{InsiderTradeRepo: insideTradesRepo}
 
 	funcMap := template.FuncMap{
 		"add": func(a, b int) int { return a + b },
 	}
 	tmpl := template.Must(template.New("").Funcs(funcMap).ParseGlob("web/templates/*.html"))
-
-  instrumentHandler := &handler.InstrumentHandler{Repo: instrumentRepo, TradeRepo: tradeRepo, Service: instrumentService, Tmpl: tmpl}
-  insiderTradesHandler := &handler.InsiderTradesHandler{Service: insideTradesService, Tmpl: tmpl}
-	tradeHandler := &handler.TradeHandler{TradeService: tradeService, Tmpl: tmpl}
-	shortsHandler := &handler.ShortsHandler{Repo: instrumentRepo, Tmpl: tmpl}
 
 	kiteClient := kite.New(os.Getenv("KITE_API_KEY"))
 	if token := os.Getenv("KITE_ACCESS_TOKEN"); token != "" {
@@ -95,15 +87,6 @@ func main() {
 	} else {
 		log.Println("No KITE_ACCESS_TOKEN set — use /auth/login for Kite OAuth")
 	}
-
-	authHandler := &handler.AuthHandler{
-		KiteClient: kiteClient,
-		APISecret:  os.Getenv("KITE_API_SECRET"),
-		Db:         db,
-	}
-
-	authHandler.LoadSession()
-
 	tickerService := ticker.New(kiteClient, instrumentRepo)
 	// Check if ticker was enabled in settings
 	var tickerSetting models.AppSetting
@@ -114,7 +97,22 @@ func main() {
 	}
 	defer tickerService.Stop()
 
-	adminHandler := &handler.AdminHandler{Service: instrumentService, Ticker: tickerService,  InsiderTradeService: insideTradesService, Db: db, Tmpl: tmpl}
+	bbService := service.NewBBService(&repo.BulkBlockDealRepo{Db: db})
+	instrumentService := &service.InstrumentService{InstruRepo: instrumentRepo, BBService: bbService}
+	tradeService := &service.TradeService{TradeRepo: tradeRepo, InstruRepo: instrumentRepo}
+	insideTradesService := &service.InsiderTradesService{InsiderTradeRepo: insideTradesRepo}
+
+	instrumentHandler := &handler.InstrumentHandler{Repo: instrumentRepo, TradeRepo: tradeRepo, Service: instrumentService, Tmpl: tmpl}
+	insiderTradesHandler := &handler.InsiderTradesHandler{Service: insideTradesService, Tmpl: tmpl}
+	tradeHandler := &handler.TradeHandler{TradeService: tradeService, Tmpl: tmpl}
+	shortsHandler := &handler.ShortsHandler{Repo: instrumentRepo, Tmpl: tmpl}
+	authHandler := &handler.AuthHandler{
+		KiteClient: kiteClient,
+		APISecret:  os.Getenv("KITE_API_SECRET"),
+		Db:         db,
+	}
+	authHandler.LoadSession()
+	adminHandler := &handler.AdminHandler{Service: instrumentService, Ticker: tickerService, InsiderTradeService: insideTradesService, BBService: bbService, Db: db, Tmpl: tmpl}
 	gttRepo := &repo.GTTRepo{Db: db}
 	gttHandler := &handler.GTTHandler{KiteClient: kiteClient, GTTRepo: gttRepo, Tmpl: tmpl}
 	kiteAlertRepo := &repo.KiteAlertRepo{Db: db}
@@ -140,8 +138,8 @@ func main() {
 	http.HandleFunc("/api/instrument/notes", instrumentHandler.NotesAPI)
 	http.HandleFunc("/instrument/notes/create", instrumentHandler.CreateNote)
 	http.HandleFunc("/instrument/notes/delete", instrumentHandler.DeleteNote)
-  http.HandleFunc("/api/instrument/insider-trades", insiderTradesHandler.API)
-  http.HandleFunc("/insider-trades", insiderTradesHandler.Page)
+	http.HandleFunc("/api/instrument/insider-trades", insiderTradesHandler.API)
+	http.HandleFunc("/insider-trades", insiderTradesHandler.Page)
 	http.HandleFunc("/shorts", shortsHandler.Page)
 	http.HandleFunc("/api/shorts/chart", shortsHandler.ChartData)
 	http.HandleFunc("/api/shorts/total", shortsHandler.TotalChartData)
@@ -152,6 +150,7 @@ func main() {
 	http.HandleFunc("/admin/rename-symbol", adminHandler.RenameSymbol)
 	http.HandleFunc("/admin/compute-signals", adminHandler.ComputeSignals)
 	http.HandleFunc("/admin/sync-insider-trades", adminHandler.SyncInsiderTrades)
+	http.HandleFunc("/admin/sync-bulk-block-deals", adminHandler.SyncBulkBlockDeals)
 	http.HandleFunc("/api/ticker/status", adminHandler.TickerStatus)
 	http.HandleFunc("/api/ticker/toggle", adminHandler.TickerToggle)
 	http.HandleFunc("/api/last-url", adminHandler.GetLastURL)
@@ -176,6 +175,7 @@ func main() {
 	http.HandleFunc("/api/alerts", breadthHandler.AlertsAPI)
 	http.HandleFunc("/range", instrumentHandler.RangePage)
 	http.HandleFunc("/notes", instrumentHandler.NotesPage)
+	http.HandleFunc("/backfill-intraday-vol", instrumentHandler.BackFillIntraDayVol)
 
 	addr := ":6969"
 	log.Printf("UI available at http://localhost%s\n", addr)

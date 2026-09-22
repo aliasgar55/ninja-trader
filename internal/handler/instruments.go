@@ -30,10 +30,10 @@ func formatIndianNumber(n float64) string {
 }
 
 type InstrumentHandler struct {
-  Repo      repo.InstrumentRepo
-  TradeRepo repo.TradeRepo
-  Service   *service.InstrumentService
-  Tmpl      *template.Template
+	Repo      repo.InstrumentRepo
+	TradeRepo repo.TradeRepo
+	Service   *service.InstrumentService
+	Tmpl      *template.Template
 }
 
 func (h *InstrumentHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -115,28 +115,28 @@ func (h *InstrumentHandler) Detail(w http.ResponseWriter, r *http.Request) {
 		adjCh <- adjacentResult{p, n}
 	}()
 
-  fullName := ""
-  watchlist := false
-  marketCap := ""
-  basicIndustry := ""
-  index := ""
-  holding := 0
-  needsAdjustment := false
-  isFnoSec := false
-  var deliveryPct float32
-  var updatedAt time.Time
-  var pctFrom52WLow float64
-  tag := ""
-  if inst, err := h.Repo.GetInstrumentBySymbol(symbol); err == nil {
+	fullName := ""
+	watchlist := false
+	marketCap := ""
+	basicIndustry := ""
+	index := ""
+	holding := 0
+	needsAdjustment := false
+	isFnoSec := false
+	var deliveryPct float32
+	var updatedAt time.Time
+	var pctFrom52WLow float64
+	tag := ""
+	if inst, err := h.Repo.GetInstrumentBySymbol(symbol); err == nil {
 		fullName = inst.InstrumentFullName
 		watchlist = inst.Watchlist
 		marketCap = formatIndianNumber(inst.MarketCap)
 		basicIndustry = inst.BasicIndustry
 		index = inst.Index
 		updatedAt = inst.UpdatedAt
-    needsAdjustment = inst.NeedsAdjsutment
-    isFnoSec = inst.IsFnoSec
-    tag = inst.Tag
+		needsAdjustment = inst.NeedsAdjsutment
+		isFnoSec = inst.IsFnoSec
+		tag = inst.Tag
 		if trade, err := h.TradeRepo.GetHoldingByInstrumentID(inst.ID); err == nil {
 			holding = trade
 		}
@@ -173,16 +173,16 @@ func (h *InstrumentHandler) Detail(w http.ResponseWriter, r *http.Request) {
 		FromRange          bool
 		Holding            int
 		LastUpdated        string
-    NeedsAdjustment    bool
-    IsFnoSec           bool
-    DeliveryPercentage float32
-    PctFrom52WLow      float64
-    Tag                string
-    TagOptions         []string
-    Sort               string
-    Order              string
-    Date               string
-  }{symbol, fullName, marketCap, basicIndustry, index, r.URL.Query().Get("msg"), tmplPeriod, prev, next, watchlist, watchlistOnly, fromRange, holding, lastUpdated, needsAdjustment, isFnoSec, deliveryPct, pctFrom52WLow, tag, []string{"oversold", "touch", "scoop", "overbought", "repel", "horizontal", "breakout"}, sort, order, date}); err != nil {
+		NeedsAdjustment    bool
+		IsFnoSec           bool
+		DeliveryPercentage float32
+		PctFrom52WLow      float64
+		Tag                string
+		TagOptions         []string
+		Sort               string
+		Order              string
+		Date               string
+	}{symbol, fullName, marketCap, basicIndustry, index, r.URL.Query().Get("msg"), tmplPeriod, prev, next, watchlist, watchlistOnly, fromRange, holding, lastUpdated, needsAdjustment, isFnoSec, deliveryPct, pctFrom52WLow, tag, []string{"oversold", "touch", "scoop", "overbought", "repel", "horizontal", "breakout"}, sort, order, date}); err != nil {
 		log.Printf("Template error instrument_detail.html: %v", err)
 	}
 }
@@ -291,9 +291,10 @@ func (h *InstrumentHandler) ChartData(w http.ResponseWriter, r *http.Request) {
 	deliveryValue := make([]float64, len(rows))
 	vptMa20 := make([]float64, len(rows))
 	vptScore := make([]float64, len(rows))
-	divergence := make([]float64, len(rows))
-	divergenceMax3y := make([]float64, len(rows))
-	for i, r := range rows {
+  divergence := make([]float64, len(rows))
+  divergenceMax3y := make([]float64, len(rows))
+  intraDayVol := make([]uint64, len(rows))
+  for i, r := range rows {
 		labels[i] = r.Date.Format("02 Jan 06")
 		closeValues[i] = r.C
 		lowValues[i] = r.L
@@ -313,8 +314,9 @@ func (h *InstrumentHandler) ChartData(w http.ResponseWriter, r *http.Request) {
 		}
 		vptMa20[i] = r.VptMa20
 		vptScore[i] = r.VptScore
-		divergence[i] = r.Divergence
-		divergenceMax3y[i] = r.DivergenceMax3y
+    divergence[i] = r.Divergence
+    divergenceMax3y[i] = r.DivergenceMax3y
+    intraDayVol[i] = r.EstimatedIntraDayVol
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
@@ -331,8 +333,9 @@ func (h *InstrumentHandler) ChartData(w http.ResponseWriter, r *http.Request) {
 		"deliveryValue":      deliveryValue,
 		"vptMa20":            vptMa20,
 		"vptScore":           vptScore,
-		"divergence":         divergence,
-		"divergenceMax3y":    divergenceMax3y,
+    "divergence":         divergence,
+    "divergenceMax3y":    divergenceMax3y,
+    "intraDayVol":        intraDayVol,
 	})
 }
 
@@ -722,3 +725,11 @@ func (h *InstrumentHandler) NotesPage(w http.ResponseWriter, r *http.Request) {
 	}{groups, len(views)})
 }
 
+func (h *InstrumentHandler) BackFillIntraDayVol(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	h.Service.BackFillIntraDayVol()
+	w.WriteHeader(http.StatusOK)
+}

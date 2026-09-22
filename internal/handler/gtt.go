@@ -207,18 +207,18 @@ func (h *GTTHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-  _, err = h.KiteClient.DeleteGTT(triggerID)
-  if err != nil {
-    log.Printf("Error deleting GTT %d from Kite: %v — marking as deleted locally", triggerID, err)
-  }
+	_, err = h.KiteClient.DeleteGTT(triggerID)
+	if err != nil {
+		log.Printf("Error deleting GTT %d from Kite: %v — marking as deleted locally", triggerID, err)
+	}
 
-  // Mark as deleted in local DB regardless of Kite response
-  if dbErr := h.GTTRepo.UpdateStatus(triggerID, "deleted"); dbErr != nil {
-    log.Printf("GTT %d failed to mark as deleted in DB: %v", triggerID, dbErr)
-  }
+	// Mark as deleted in local DB regardless of Kite response
+	if dbErr := h.GTTRepo.UpdateStatus(triggerID, "deleted"); dbErr != nil {
+		log.Printf("GTT %d failed to mark as deleted in DB: %v", triggerID, dbErr)
+	}
 
-  w.Header().Set("Content-Type", "application/json")
-  json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (h *GTTHandler) Sync(w http.ResponseWriter, r *http.Request) {

@@ -33,7 +33,6 @@ func (repo *InsiderTradesRepo) CreateInsiderTrade(transaction *models.InsiderTra
 	})
 }
 
-
 func (repo *InsiderTradesRepo) GetBySymbol(symbol string) ([]models.InsiderTradeWithEntity, error) {
 	var results []models.InsiderTradeWithEntity
 	err := repo.Db.Table("insider_trade_transactions").

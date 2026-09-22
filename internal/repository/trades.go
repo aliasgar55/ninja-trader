@@ -61,7 +61,7 @@ func (repo *TradeRepo) GetAllTradesWithPnL() ([]TradeWithPnL, error) {
 			i.basic_industry AS basic_industry,
       i."index" AS "index",
       COALESCE(h.vpt_score, 0) AS vpt_score`).
-    Joins(`JOIN LATERAL (
+		Joins(`JOIN LATERAL (
       SELECT c, vpt_score FROM historicaldata
       WHERE symbol = paper_trades.trading_symbol
       ORDER BY date DESC LIMIT 1

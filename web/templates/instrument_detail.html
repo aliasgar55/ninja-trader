@@ -7,10 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: system-ui, sans-serif; margin: 0; background: #f5f5f5; }
-        .nav { display: flex; gap: 0; background: #333; padding: 0 1rem; }
-        .nav a { color: #ccc; text-decoration: none; padding: 0.75rem 1.5rem; }
-        .nav a:hover { background: #444; color: #fff; }
-        .nav a.active { color: #fff; border-bottom: 2px solid #4CAF50; }
+
         .content { padding: 2rem; }
         .back { color: #1a73e8; text-decoration: none; font-size: 0.95rem; }
         .back:hover { text-decoration: underline; }
@@ -21,15 +18,24 @@
         .chart-container { background: #fff; border-radius: 8px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 1rem; min-width: 0; }
         .charts-row { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
         .no-data { color: #888; padding: 2rem; text-align: center; }
-        .instrument-header { background: #fff; border-radius: 8px; padding: 1.25rem 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 1rem; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+        .instrument-header { background: #fff; border-radius: 8px; padding: 1.25rem 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 1rem; display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+        .instrument-header > div:first-child { min-width: 0; flex: 1; }
         .instrument-header h1 { margin: 0; font-size: 1.8rem; letter-spacing: 0.5px; }
         .instrument-header .fullname { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 0.2rem; }
-        .instrument-header a { padding: 0 1rem; border-radius: 6px; text-decoration: none; color: #555; background: #f5f5f5; border: 1px solid #ddd; font-size: 0.9rem; height: 36px; display: inline-flex; align-items: center; }
+        .fno-toggle { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.5px; padding: 0.3rem 0.75rem; border-radius: 4px; flex-shrink: 0; }
+        .fno-toggle.fno-on { background: #d4edda; color: #155724; border: 1px solid #b7dfbf; }
+        .fno-toggle.fno-off { background: #f5f5f5; color: #999; border: 1px solid #ddd; }
+        .instrument-header a { padding: 0 0.75rem; border-radius: 4px; text-decoration: none; color: #555; background: #f5f5f5; border: 1px solid #ddd; font-size: 0.82rem; height: 32px; display: inline-flex; align-items: center; }
         .instrument-header a:hover { background: #ebebeb; }
         .instrument-meta { display: flex; gap: 2rem; margin-top: 0.75rem; flex-wrap: wrap; }
         .instrument-meta .meta-item { display: flex; flex-direction: column; }
         .instrument-meta .meta-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.6px; color: #aaa; }
         .instrument-meta .meta-value { font-size: 1.25rem; font-weight: 600; color: #333; margin-top: 0.1rem; }
+        .actions-area { display: flex; flex-direction: column; align-items: flex-end; gap: 0.6rem; flex-shrink: 0; }
+        .actions-primary { display: flex; align-items: center; gap: 0.6rem; }
+        .actions-secondary { display: flex; align-items: center; gap: 0.5rem; }
+        .btn-nav { padding: 0 0.75rem; border-radius: 4px; text-decoration: none; color: #555; background: #f5f5f5; border: 1px solid #ddd; font-size: 0.82rem; height: 32px; display: inline-flex; align-items: center; }
+        .btn-nav:hover { background: #ebebeb; color: #333; }
         .watchlist-btn { padding: 0; border-radius: 6px; border: 1px solid #ccc; cursor: pointer; font-size: 0.9rem; width: 120px; height: 36px; white-space: nowrap; text-align: center; }
         .watchlist-btn.active { background: #4CAF50; color: #fff; border-color: #4CAF50; }
         .watchlist-btn.active:hover { background: #43A047; }
@@ -39,6 +45,12 @@
         .buy-btn:hover { background: #43A047; }
         .sell-btn { padding: 0; border-radius: 6px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 600; background: #e53935; color: #fff; width: 120px; height: 36px; text-align: center; }
         .sell-btn:hover { background: #c62828; }
+        .btn-tool { padding: 0; border-radius: 6px; border: 1px solid #1a73e8; cursor: pointer; font-size: 0.9rem; font-weight: 600; background: #fff; color: #1a73e8; width: 120px; height: 36px; white-space: nowrap; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+        .btn-tool:hover { background: #e8f0fe; }
+        .btn-tool-gtt { border-color: #FF9800; color: #FF9800; width: 80px; }
+        .btn-tool-gtt:hover { background: #FFF3E0; }
+        .btn-tool-ext { border-color: #2962FF; color: #2962FF; }
+        .btn-tool-ext:hover { background: #E3F2FD; }
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; }
         .modal-overlay.open { display: flex; }
         .modal { background: #fff; border-radius: 8px; padding: 1.5rem; min-width: 280px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
@@ -50,8 +62,6 @@
         .modal-cancel { background: #f5f5f5; color: #333; border: 1px solid #ccc !important; }
         .modal-confirm-buy { background: #4CAF50; color: #fff; }
         .modal-confirm-sell { background: #e53935; color: #fff; }
-        .watchlist-btn.active { background: #4CAF50; color: #fff; border-color: #4CAF50; }
-        .watchlist-btn.inactive { background: #fff; color: #333; }
         .toast { position: fixed; top: 4rem; right: 1.5rem; background: #333; color: #fff; padding: 0.8rem 1.8rem; border-radius: 6px; font-size: 1.05rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
         .toast.show { opacity: 1; }
         .filters { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
@@ -83,10 +93,7 @@
         .gtt-form .form-row > div { flex: 1; }
         .gtt-submit { margin-top: 1rem; width: 100%; padding: 0.5rem; background: #4CAF50; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.95rem; font-weight: 600; }
         .gtt-submit:hover { background: #43A047; }
-        .gtt-btn { padding: 0; border-radius: 6px; border: 1px solid #FF9800; cursor: pointer; font-size: 0.9rem; font-weight: 600; background: #fff; color: #FF9800; width: 80px; height: 36px; text-align: center; }
-        .gtt-btn:hover { background: #FFF3E0; }
-        .tradingview-btn { padding: 0; border-radius: 6px; border: 1px solid #2962FF; cursor: pointer; font-size: 0.9rem; font-weight: 600; background: #fff; color: #2962FF; width: 120px; height: 36px; text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
-        .tradingview-btn:hover { background: #E3F2FD; }
+
         .oco-fields { display: none; }
         .oco-fields.show { display: block; }
         .existing-gtt { border: 1px solid #eee; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem; font-size: 0.85rem; }
@@ -106,8 +113,7 @@
         .tag-dropdown-item { padding: 0.4rem 0.75rem; cursor: pointer; text-transform: capitalize; font-size: 0.95rem; }
         .tag-dropdown-item:hover, .tag-dropdown-item.highlighted { background: #e8f0fe; }
         .tag-dropdown-item.active { font-weight: 600; color: #1a73e8; }
-        .tag-history-btn { padding: 0; border-radius: 6px; border: 1px solid #1a73e8; cursor: pointer; font-size: 0.9rem; font-weight: 600; background: #fff; color: #1a73e8; width: 120px; height: 36px; text-align: center; }
-        .tag-history-btn:hover { background: #e8f0fe; }
+
         .tag-history-entry { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid #f0f0f0; font-size: 1.05rem; }
         .tag-history-entry:last-child { border-bottom: none; }
         .tag-history-date { color: #888; font-size: 0.95rem; min-width: 90px; }
@@ -119,10 +125,16 @@
     {{template "nav" "instruments"}}
     <div class="content">
         <a class="back" href="{{if .WatchlistOnly}}/watchlist{{else}}/{{end}}?{{if .Sort}}sort={{.Sort}}&order={{.Order}}{{end}}{{if .Date}}{{if .Sort}}&{{end}}date={{.Date}}{{end}}{{if .FromRange}}{{if or .Sort .Date}}&{{end}}from=range{{end}}">← Back to {{if .WatchlistOnly}}Watchlist{{else}}Instruments{{end}}</a>
-        <form class="search-box" id="symbolSearch" onsubmit="return goToSymbol(event)">
-            <input type="text" id="symbolInput" placeholder="Go to symbol...">
-            <button type="submit">Go</button>
-        </form>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:1rem;">
+            <form class="search-box" id="symbolSearch" onsubmit="return goToSymbol(event)" style="margin:0;">
+                <input type="text" id="symbolInput" placeholder="Go to symbol...">
+                <button type="submit">Go</button>
+            </form>
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+                {{if .PrevSymbol}}<a id="prevLink" class="btn-nav" href="/instrument?symbol={{.PrevSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}">← {{.PrevSymbol}}</a>{{end}}
+                {{if .NextSymbol}}<a id="nextLink" class="btn-nav" href="/instrument?symbol={{.NextSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}">{{.NextSymbol}} →</a>{{end}}
+            </div>
+        </div>
         <div class="instrument-header">
             <div>
                 <div style="display:flex;align-items:baseline;gap:0.75rem">
@@ -136,27 +148,11 @@
                     {{if ne .Holding 0}}<div class="meta-item"><span class="meta-label">Holding</span><span class="meta-value">{{.Holding}}</span></div>{{end}}
                     {{if gt .DeliveryPercentage 0.0}}<div class="meta-item"><span class="meta-label">Delivery %</span><span class="meta-value">{{printf "%.2f" .DeliveryPercentage}}%</span></div>{{end}}
                     {{if gt .PctFrom52WLow 0.0}}<div class="meta-item"><span class="meta-label">From 52W Low</span><span class="meta-value">{{printf "%.0f" .PctFrom52WLow}}%</span></div>{{end}}
-                    {{if .IsFnoSec}}<div class="meta-item"><span class="meta-label">F&amp;O</span><span class="meta-value" style="color:#155724">Yes</span></div>{{end}}
-                    <div class="meta-item">
-                        <span class="meta-label">Tag</span>
-                        <div class="tag-dropdown" id="tagDropdown">
-                            <button type="button" class="tag-dropdown-btn" id="tagBtn" onclick="toggleTagMenu()">{{if .Tag}}{{.Tag}}{{else}}—{{end}}</button>
-                            <div class="tag-dropdown-menu" id="tagMenu">
-                                <div class="tag-dropdown-item{{if not .Tag}} active{{end}}" data-value="" onclick="selectTag('')">—</div>
-                                {{range .TagOptions}}<div class="tag-dropdown-item{{if eq $.Tag .}} active{{end}}" data-value="{{.}}" onclick="selectTag('{{.}}')">{{.}}</div>
-                                {{end}}
-                            </div>
-                        </div>
-                    </div>
                 </div>
                 {{if .LastUpdated}}<div style="font-size:0.7rem;color:#bbb;margin-top:0.5rem">{{if .NeedsAdjustment}}<span style="display:inline-block;width:8px;height:8px;background:#e53935;border-radius:50%;margin-right:4px;vertical-align:middle" title="Needs adjustment"></span>{{end}}Last updated: {{.LastUpdated}}</div>{{end}}
             </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.6rem">
-                <div style="display:flex;align-items:center;gap:0.6rem">
-            {{if .PrevSymbol}}<a id="prevLink" href="/instrument?symbol={{.PrevSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}">← {{.PrevSymbol}}</a>{{end}}
-            {{if .NextSymbol}}<a id="nextLink" href="/instrument?symbol={{.NextSymbol}}&period={{.Period}}{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}">{{.NextSymbol}} →</a>{{end}}
-                </div>
-                <div style="display:flex;align-items:center;gap:0.6rem">
+            <div class="actions-area">
+                <div class="actions-primary">
                     <form method="POST" action="/instrument/watchlist" style="margin:0">
                         <input type="hidden" name="symbol" value="{{.Symbol}}">
                         <input type="hidden" name="watchlist_only" value="{{if .WatchlistOnly}}1{{end}}">
@@ -168,15 +164,16 @@
                     <button class="buy-btn" onclick="openOrderModal('BUY')">Buy</button>
                     <button class="sell-btn" onclick="openOrderModal('SELL')">Sell</button>
                 </div>
-                <div style="display:flex;gap:0.5rem">
-                    <button class="tag-history-btn" onclick="openTagHistoryDrawer()">Tag History</button>
-                    <button class="gtt-btn" onclick="openGTTDrawer()">GTT</button>
-                    <button class="tag-history-btn" onclick="openNotesDrawer()">Notes</button>
-                    <button class="tag-history-btn" onclick="openAlertDrawer()">Alert</button>
-                    <button class="tag-history-btn" onclick="openInsiderDrawer()">Insider</button>
-                    <button class="tag-history-btn" id="bookmarkBtn" onclick="saveBookmark()">📌 Bookmark</button>
-                    <a href="https://www.tradingview.com/chart/?symbol=NSE:{{.Symbol}}" target="_blank" rel="noopener noreferrer" class="tradingview-btn">TradingView</a>
-                    <a href="https://www.screener.in/company/{{.Symbol}}/" target="_blank" rel="noopener noreferrer" class="tradingview-btn" style="border-color:#4CAF50;color:#4CAF50;">Screener</a>
+                <div class="actions-secondary">
+                    <button class="btn-tool btn-tool-gtt" onclick="openGTTDrawer()">GTT</button>
+                    <button class="btn-tool" onclick="openNotesDrawer()">Notes</button>
+                    <button class="btn-tool" onclick="openAlertDrawer()">Alert</button>
+                    <button class="btn-tool" onclick="openInsiderDrawer()">Insider</button>
+                    <button class="btn-tool" id="bookmarkBtn" onclick="saveBookmark()">Bookmark</button>
+                </div>
+                <div class="actions-secondary">
+                    <a href="https://www.tradingview.com/chart/?symbol=NSE:{{.Symbol}}" target="_blank" rel="noopener noreferrer" class="btn-tool btn-tool-ext">TradingView</a>
+                    <a href="https://www.screener.in/company/{{.Symbol}}/" target="_blank" rel="noopener noreferrer" class="btn-tool btn-tool-ext" style="border-color:#4CAF50;color:#4CAF50;">Screener</a>
                 </div>
             </div>
         </div>
@@ -222,7 +219,8 @@
         </div>
 
 
-        <div class="filters" id="chartFilters">
+        <div style="display:flex;align-items:center;gap:1rem;margin-top:1rem;">
+            <div class="filters" id="chartFilters" style="margin-top:0;">
 <a id="period-1" href="/instrument?symbol={{.Symbol}}&period=1m{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}" class="{{if eq .Period "1m"}}active{{end}}">1M</a>
 <a id="period-2" href="/instrument?symbol={{.Symbol}}&period=6m{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}" class="{{if eq .Period "6m"}}active{{end}}">6M</a>
 <a id="period-3" href="/instrument?symbol={{.Symbol}}&period=1y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}" class="{{if eq .Period "1y"}}active{{end}}">1Yr</a>
@@ -230,7 +228,9 @@
 <a id="period-5" href="/instrument?symbol={{.Symbol}}&period=5y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}" class="{{if eq .Period "5y"}}active{{end}}">5Yr</a>
 <a id="period-6" href="/instrument?symbol={{.Symbol}}&period=10y{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}" class="{{if eq .Period "10y"}}active{{end}}">10Yr</a>
 <a id="period-0" href="/instrument?symbol={{.Symbol}}&period=max{{if .WatchlistOnly}}&watchlist=1{{end}}{{if .FromRange}}&from=range{{end}}{{if .Sort}}&sort={{.Sort}}&order={{.Order}}{{end}}&date={{.Date}}" class="{{if eq .Period "max"}}active{{end}}">Max</a>
-            <span style="margin-left:auto;font-size:1.1rem;color:#555;">VPT: <strong id="vptScoreValue">—</strong> | Div: <strong id="divScoreValue">—</strong> | Vol: <strong id="volRatioValue">—</strong></span>
+            </div>
+            <span style="margin-left:auto;font-size:1.1rem;color:#555;white-space:nowrap;">VPT: <strong id="vptScoreValue">—</strong> | Div: <strong id="divScoreValue">—</strong> | Vol: <strong id="volRatioValue">—</strong></span>
+            <span class="fno-toggle {{if .IsFnoSec}}fno-on{{else}}fno-off{{end}}">{{if .IsFnoSec}}F&amp;O{{else}}Cash{{end}}</span>
         </div>
 
         <div class="charts-row">
@@ -366,86 +366,14 @@
             toast._t = setTimeout(() => toast.classList.remove('show'), 2000);
         }
 
-        function setTag(tag) {
-            const fd = new FormData();
-            fd.append('symbol', symbol);
-            fd.append('tag', tag);
-            fetch('/instrument/tag', {method:'POST', body:fd, headers:{'X-Requested-With':'fetch'}})
-                .then(r => { if(r.ok) showToast(tag ? 'Tag: '+tag : 'Tag cleared'); });
-        }
-
-        function toggleTagMenu() {
-            const menu = document.getElementById('tagMenu');
-            if (menu.classList.contains('open')) { closeTagMenu(); } else { openTagMenu(); }
-        }
-        function openTagMenu() {
-            const menu = document.getElementById('tagMenu');
-            menu.classList.add('open');
-            const items = menu.querySelectorAll('.tag-dropdown-item');
-            let activeIdx = Array.from(items).findIndex(i => i.classList.contains('active'));
-            items.forEach(i => i.classList.remove('highlighted'));
-            if (activeIdx >= 0) items[activeIdx].classList.add('highlighted');
-        }
-        function closeTagMenu() {
-            const menu = document.getElementById('tagMenu');
-            menu.classList.remove('open');
-            menu.querySelectorAll('.tag-dropdown-item').forEach(i => i.classList.remove('highlighted'));
-        }
-        function selectTag(val) {
-            const btn = document.getElementById('tagBtn');
-            btn.textContent = val || '—';
-            document.getElementById('tagMenu').querySelectorAll('.tag-dropdown-item').forEach(i => {
-                i.classList.toggle('active', i.dataset.value === val);
-            });
-            closeTagMenu();
-            setTag(val);
-        }
-        document.addEventListener('click', e => {
-            if (!document.getElementById('tagDropdown').contains(e.target)) closeTagMenu();
-        });
 
         document.addEventListener('keydown', e => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             if (e.key === 'n' || e.key === 'N') { e.preventDefault(); openNotesDrawer(); return; }
             if (document.getElementById('notesDrawer').classList.contains('open')) return;
-            const menu = document.getElementById('tagMenu');
-            const tagOpen = menu.classList.contains('open');
-
-            if (tagOpen) {
-                const items = Array.from(menu.querySelectorAll('.tag-dropdown-item'));
-                let hlIdx = items.findIndex(i => i.classList.contains('highlighted'));
-                if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    items.forEach(i => i.classList.remove('highlighted'));
-                    hlIdx = (hlIdx + 1) % items.length;
-                    items[hlIdx].classList.add('highlighted');
-                    items[hlIdx].scrollIntoView({block:'nearest'});
-                    return;
-                }
-                if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    items.forEach(i => i.classList.remove('highlighted'));
-                    hlIdx = (hlIdx - 1 + items.length) % items.length;
-                    items[hlIdx].classList.add('highlighted');
-                    items[hlIdx].scrollIntoView({block:'nearest'});
-                    return;
-                }
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (hlIdx >= 0) selectTag(items[hlIdx].dataset.value);
-                    return;
-                }
-                if (e.key === 'Escape' || e.key === 't') {
-                    e.preventDefault();
-                    closeTagMenu();
-                    return;
-                }
-                return;
-            }
 
             const periods = ['period-1','period-2','period-3','period-4','period-5','period-6','period-0'];
             const activeIdx = periods.findIndex(id => document.getElementById(id)?.classList.contains('active'));
-            if (e.key === 't' || e.key === 'T') { e.preventDefault(); openTagMenu(); return; }
             if (e.key === 'ArrowLeft') document.getElementById('prevLink')?.click();
             if (e.key === 'ArrowRight') document.getElementById('nextLink')?.click();
             if (e.key === 'w' || e.key === 'W') document.getElementById('watchlistBtn')?.click();
@@ -914,6 +842,14 @@
                         pointRadius: 0,
                         fill: false,
                         yAxisID: 'y2'
+                    }, {
+                        label: 'Intraday Vol',
+                        type: 'bar',
+                        data: priceData.intraDayVol,
+                        backgroundColor: 'rgba(183,28,28,0.7)',
+                        borderColor: 'rgba(183,28,28,1)',
+                        borderWidth: 1,
+                        yAxisID: 'yIntra'
                     }]
                 },
                 options: {
@@ -926,7 +862,8 @@
                         x: { title: { display: true, text: 'Date' } },
                         y: { type: 'logarithmic', title: { display: true, text: 'Volume' }, position: 'left' },
                         y1: { type: 'logarithmic', title: { display: true, text: 'No. of Trades' }, position: 'right', grid: { drawOnChartArea: false } },
-                        y2: { title: { display: true, text: 'Del Val / MCap %' }, position: 'right', min: 0, max: 4, grid: { drawOnChartArea: false } }
+                        y2: { title: { display: true, text: 'Del Val / MCap %' }, position: 'right', min: 0, max: 4, grid: { drawOnChartArea: false } },
+                        yIntra: { display: false, beginAtZero: true, grid: { drawOnChartArea: false } }
                     }
                 }
             });

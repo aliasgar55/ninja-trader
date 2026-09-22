@@ -6,10 +6,7 @@
     <title>Ninja Trader - Admin</title>
     <style>
         body { font-family: system-ui, sans-serif; margin: 0; background: #f5f5f5; }
-        .nav { display: flex; gap: 0; background: #333; padding: 0 1rem; }
-        .nav a { color: #ccc; text-decoration: none; padding: 0.75rem 1.5rem; }
-        .nav a:hover { background: #444; color: #fff; }
-        .nav a.active { color: #fff; border-bottom: 2px solid #4CAF50; }
+
         .content { padding: 2rem 2.5rem; max-width: 1100px; }
 
         .page-header { margin-bottom: 2rem; padding-bottom: 1.25rem; border-bottom: 1px solid #e0e0e0; }
@@ -84,6 +81,8 @@
             <div class="msg msg-success">Compute Signals backfill started in background.</div>
         {{else if eq .Msg "sync_insider_started"}}
             <div class="msg msg-success">Sync Insider Trades job started in background.</div>
+        {{else if eq .Msg "sync_bulk_block_started"}}
+            <div class="msg msg-success">Sync Bulk/Block Deals job started in background.</div>
         {{else if eq .Msg "kite_logged_out"}}
             <div class="msg msg-success">Kite session logged out.</div>
         {{end}}
@@ -188,6 +187,17 @@
                                 </div>
                                 <button class="btn btn-primary" type="submit">Run Sync</button>
                             </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Sync Bulk/Block Deals</h3>
+                    </div>
+                    <p class="card-desc">Fetch bulk and block deal data from NSE. Resumes from the last synced date.</p>
+                    <div class="card-actions">
+                        <form method="POST" action="/admin/sync-bulk-block-deals">
+                            <button class="btn btn-primary" type="submit">Run Sync</button>
                         </form>
                     </div>
                 </div>

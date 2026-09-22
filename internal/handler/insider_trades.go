@@ -103,29 +103,29 @@ func (h *InsiderTradesHandler) API(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-  type entry struct {
-    Date            string  `json:"date"`
-    Entity          string  `json:"entity"`
-    Category        string  `json:"category"`
-    Type            string  `json:"type"`
-    Quantity        int64   `json:"quantity"`
-    Value           float64 `json:"value"`
-    AcqMode         string  `json:"acqMode"`
-    HoldingAfterPct float64 `json:"holdingAfterPct"`
-  }
-  entries := make([]entry, len(trades))
-  for i, t := range trades {
-    entries[i] = entry{
-      Date:            t.TransactionDate.Format("02 Jan 2006"),
-      Entity:          t.EntityName,
-      Category:        t.EntityCategory,
-      Type:            t.TransactionType,
-      Quantity:        t.Quantity,
-      Value:           t.Value,
-      AcqMode:         t.AcqMode,
-      HoldingAfterPct: t.HoldingAfterPct,
-    }
-  }
+	type entry struct {
+		Date            string  `json:"date"`
+		Entity          string  `json:"entity"`
+		Category        string  `json:"category"`
+		Type            string  `json:"type"`
+		Quantity        int64   `json:"quantity"`
+		Value           float64 `json:"value"`
+		AcqMode         string  `json:"acqMode"`
+		HoldingAfterPct float64 `json:"holdingAfterPct"`
+	}
+	entries := make([]entry, len(trades))
+	for i, t := range trades {
+		entries[i] = entry{
+			Date:            t.TransactionDate.Format("02 Jan 2006"),
+			Entity:          t.EntityName,
+			Category:        t.EntityCategory,
+			Type:            t.TransactionType,
+			Quantity:        t.Quantity,
+			Value:           t.Value,
+			AcqMode:         t.AcqMode,
+			HoldingAfterPct: t.HoldingAfterPct,
+		}
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(entries)
 }

@@ -2,18 +2,61 @@ package nse
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	models "ninja-trader/internal/model"
 
 	"github.com/gocarina/gocsv"
 )
+
+var nseHTTPClient = &http.Client{
+	Transport: &http.Transport{
+		Proxy:               http.ProxyFromEnvironment,
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 20,
+		IdleConnTimeout:     90 * time.Second,
+	},
+	Timeout: 15 * time.Second,
+}
+
+
+type NseLastUpdateTime time.Time
+type TradeDate time.Time
+
+func (d *NseLastUpdateTime) UnmarshalJSON(data []byte) error {
+	t, err := time.Parse("\"02-Jan-2006 15:04:05\"", string(data))
+	if err != nil {
+		return err
+	}
+	*d = NseLastUpdateTime(t)
+	return nil
+}
+
+func (d *TradeDate) UnmarshalCSV(csv string) error {
+	t, err := time.Parse("02-Jan-2006", csv)
+	if err != nil {
+		return err
+	}
+	*d = TradeDate(t)
+	return nil
+}
+
+func (d *TradeDate) UnmarshalJSON(data []byte) error {
+	t, err := time.Parse("\"02-Jan-2006\"", string(data))
+	if err != nil {
+		return err
+	}
+	*d = TradeDate(t)
+	return nil
+}
 
 type EquityRoot struct {
 	EquityResponse []EquityResponse `json:"equityResponse"`
@@ -65,6 +108,7 @@ type MetaData struct {
 	CompanyName string `json:"companyName"`
 	IsinCode    string `json:"isinCode"`
 	Symbol      string `json:"symbol"`
+	AdjPrice float64 `json:"adjPrice"`
 	// Series          string  `json:"series"`
 	// MarketType      string  `json:"marketType"`
 	// Open            float64 `json:"open"`
@@ -82,7 +126,6 @@ type MetaData struct {
 	// SpoChange       float64 `json:"spoChange"`
 	// SpoPchange      float64 `json:"spoPchange"`
 	// SymbolStatus    string  `json:"symbolStatus"`
-	AdjPrice float64 `json:"adjPrice"`
 	// Iep             float64 `json:"iep"`
 	// Ieq             float64 `json:"ieq"`
 }
@@ -90,6 +133,8 @@ type MetaData struct {
 /* -------------------- TRADE INFO -------------------- */
 
 type TradeInfo struct {
+	DeliveryToTradedQuantity float32 `json:"deliveryToTradedQuantity"`
+	TotalMarketCap float64 `json:"totalMarketCap"`
 	// TotalTradedVolume        int64       `json:"totalTradedVolume"`
 	// TotalTradedValue         float64     `json:"totalTradedValue"`
 	// Series                   string      `json:"series"`
@@ -99,42 +144,43 @@ type TradeInfo struct {
 	// Ffmc                     float64     `json:"ffmc"`
 	// FaceValue                float64     `json:"faceValue"`
 	// ImpactCost               float64     `json:"impactCost"`
-	DeliveryToTradedQuantity float32 `json:"deliveryToTradedQuantity"`
 	// ApplicableMargin         float64     `json:"applicableMargin"`
 	// MarketLot                interface{} `json:"marketLot"`
 	// QuantityTraded           int64       `json:"quantitytraded"`
 	// DeliveryQuantity         int64       `json:"deliveryquantity"`
-	TotalMarketCap float64 `json:"totalMarketCap"`
 	// SecWiseDelPosDate        string      `json:"secwisedelposdate"`
 }
 
 /* -------------------- PRICE INFO -------------------- */
 
 type PriceInfo struct {
+	PriceBand string `json:"priceBand"`
+	Inav   float64 `json:"inav"`
+	IsINav string  `json:"isINav"`
+	// PpriceBand         string  `json:"ppriceBand"`
 	// YearHighDt         string  `json:"yearHightDt"`
 	// YearLowDt          string  `json:"yearLowDt"`
 	// YearHigh           float64 `json:"yearHigh"`
 	// YearLow            float64 `json:"yearLow"`
-	PriceBand string `json:"priceBand"`
 	// CmDailyVolatility  string  `json:"cmDailyVolatility"`
 	// CmAnnualVolatility string  `json:"cmAnnualVolatility"`
 	// TickSize           float64 `json:"tickSize"`
-	Inav   float64 `json:"inav"`
-	IsINav string  `json:"isINav"`
-	// PpriceBand         string  `json:"ppriceBand"`
 }
 
 /* -------------------- SECURITY INFO -------------------- */
 
 type SecInfo struct {
-	// SecStatus                string      `json:"secStatus"`
+	BasicIndustry string `json:"basicIndustry"`
+	Index         string `json:"index"`
 	ListingDate string `json:"listingDate"`
+	Macro        string `json:"macro"`
+	Sector       string `json:"sector"`
+	IndustryInfo string `json:"industryInfo"`
+	// SecStatus                string      `json:"secStatus"`
 	// PdSectorInd              string      `json:"pdSectorInd"`
 	// PdSectorPe               string      `json:"pdSectorPe"`
 	// PdSymbolPe               string      `json:"pdSymbolPe"`
 	// IsSuspended              string      `json:"isSuspended"`
-	BasicIndustry string `json:"basicIndustry"`
-	Index         string `json:"index"`
 	// DeliveryQuantity         string      `json:"deliveryQuantity"`
 	// DeliveryTotradedQuantity string      `json:"deliveryTotradedQuantity"`
 	// SecurityVar              string      `json:"securityvar"`
@@ -150,9 +196,6 @@ type SecInfo struct {
 	// CouponRate               interface{} `json:"couponRate"`
 	// NxtIpDate                interface{} `json:"nxtIpDate"`
 	// CreditRating             interface{} `json:"creditRating"`
-	Macro        string `json:"macro"`
-	Sector       string `json:"sector"`
-	IndustryInfo string `json:"industryInfo"`
 	// IndexList                []string    `json:"indexList"`
 	// BoardStatus              string      `json:"boardStatus"`
 	// TradingSegment           string      `json:"tradingSegment"`
@@ -185,36 +228,38 @@ func (equity *EquityRoot) GetNeedsAdjustment() bool {
 	return equity.EquityResponse[0].MetaData.AdjPrice > 0
 }
 
-type NseLastUpdateTime time.Time
+func GetNseDetails(symbol, segment string) (*EquityRoot, error) {
+	url := fmt.Sprintf("https://www.nseindia.com/api/NextApi/apiClient/GetQuoteApi?functionName=getSymbolData&marketType=N&series=%s&symbol=%s", segment, url.QueryEscape(symbol))
+	method := "GET"
 
-func (d *NseLastUpdateTime) UnmarshalJSON(data []byte) error {
-	t, err := time.Parse("\"02-Jan-2006 15:04:05\"", string(data))
+	req, err := http.NewRequest(method, url, nil)
+
 	if err != nil {
-		return err
+		log.Printf("Error creating req %s\n", err)
+		return nil, err
 	}
-	*d = NseLastUpdateTime(t)
-	return nil
+
+	req.Header.Add("Accept", "*/*")
+	req.Header.Add("User-Agent", "PostmanRuntime/7.51.1")
+	
+	log.Printf("Calling NSE Details: %s\n", url)
+	res, err := nseHTTPClient.Do(req)
+	if err != nil {
+		log.Printf("Error fetching nse data %s\n", err)
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	var result EquityRoot
+
+	if err = json.NewDecoder(res.Body).Decode(&result); err != nil {
+		log.Printf("Error decoding json response %s, %s \n", err, url)
+		return nil, err
+	}
+	return &result, nil
 }
 
-type TradeDate time.Time
-
-func (d *TradeDate) UnmarshalCSV(csv string) error {
-	t, err := time.Parse("02-Jan-2006", csv)
-	if err != nil {
-		return err
-	}
-	*d = TradeDate(t)
-	return nil
-}
-
-func (d *TradeDate) UnmarshalJSON(data []byte) error {
-	t, err := time.Parse("\"02-Jan-2006\"", string(data))
-	if err != nil {
-		return err
-	}
-	*d = TradeDate(t)
-	return nil
-}
+// SHORT TRADES START
 
 type ShortTrade struct {
 	SecurityName string    `csv:"Security Name"`
@@ -230,26 +275,66 @@ type ShortTrade2 struct {
 	Quantity     int       `csv:"Quantity"`
 }
 
-type HistoricalTrade struct {
-	O               float64   `json:"chOpeningPrice"`
-	H               float64   `json:"chTradeHighPrice"`
-	L               float64   `json:"chTradeLowPrice"`
-	C               float64   `json:"chClosingPrice"`
-	LastTradedPrice float64   `json:"chLastTradedPrice"`
-	Vwap            float64   `json:"vwap"`
-	Volume          uint64    `json:"chTotTradedQty"`
-	TradedValue     float64   `json:"chTotTradedVal"`
-	NoOfTrades      int64     `json:"chTotalTrades"`
-	Symbol          string    `json:"chSymbol"`
-	Date            TradeDate `json:"mtimestamp"`
-	YearHigh        float64   `json:"ch52WeekHighPrice"`
-	YearLow         float64   `json:"ch52WeekLowPrice"`
+
+func (nse ShortTrade) MapToShortModel() *models.Shorts {
+	return &models.Shorts{
+		TradingSymbol: nse.SymbolName,
+		SecurityName:  nse.SecurityName,
+		Quantity:      int64(nse.Quantity),
+		Date:          time.Time(nse.TradeDate),
+	}
 }
 
+func (nse ShortTrade2) MapToShortModel() *models.Shorts {
+	return &models.Shorts{
+		TradingSymbol: nse.SymbolName,
+		SecurityName:  nse.SecurityName,
+		Quantity:      int64(nse.Quantity),
+		Date:          time.Time(nse.TradeDate),
+	}
+}
+
+func GetShortTrades(date time.Time) ([]ShortTrade, error) {
+	formattedDate := date.Format("02012006")
+	url := fmt.Sprintf("https://nsearchives.nseindia.com/archives/equities/shortSelling/shortselling_%s.csv", formattedDate)
+	method := "GET"
+
+	req, err := http.NewRequest(method, url, nil)
+
+	if err != nil {
+		log.Printf("Error creating req %s\n", err)
+		return nil, err
+	}
+
+	req.Header.Add("Accept", "*/*")
+	req.Header.Add("User-Agent", "PostmanRuntime/7.51.1")
+
+	log.Printf("Calling NSE Short Trades: %s\n", url)
+	res, err := nseHTTPClient.Do(req)
+	if err != nil {
+		log.Printf("Error fetching req %s\n", err)
+		return nil, err
+	}
+	if res.StatusCode == 404 {
+		return nil, fmt.Errorf("Report for %s is not yet available please try after some time", formattedDate)
+	}
+	defer res.Body.Close()
+
+	var trades []ShortTrade
+	if err := gocsv.Unmarshal(res.Body, &trades); err != nil {
+		return nil, err
+	}
+	return trades, nil
+}
+// SHORT TRADES ENDS
+
+
+// METADATA STARTS
+// WE NEED THIS TO GET THE ACTIVE SERIES FOR A SYMBOL WHICH WILL BE USED AS INPUT FOR GETTING THE HISTORICAL DATA AND DETAIL API
 type SymbolMetaData struct {
 	Symbol       string   `json:"symbol"`
 	ActiveSeries []string `json:"activeSeries"`
-	IsFNOSec     string     `json:"isFNOSec"`
+	IsFNOSec     string   `json:"isFNOSec"`
 	// CompanyName         string        `json:"companyName"`
 	// DebtSeries          []interface{} `json:"debtSeries"`
 	// IsCASec             string        `json:"isCASec"`
@@ -266,6 +351,7 @@ type SymbolMetaData struct {
 	// ParentSymbol        string        `json:"parentSymbol"`
 }
 
+
 func (metaData SymbolMetaData) GetActiveSeries() (string, error) {
 	activeSeries := metaData.ActiveSeries
 	if len(activeSeries) == 0 {
@@ -281,6 +367,62 @@ func (metaData SymbolMetaData) GetActiveSeries() (string, error) {
 	}
 	log.Printf("New Series found %s for symbol: %s", activeSeries[0], metaData.Symbol)
 	return activeSeries[0], nil
+}
+
+
+func GetMetaData(symbol string) (*SymbolMetaData, error) {
+
+	url := fmt.Sprintf("https://www.nseindia.com/api/NextApi/apiClient/GetQuoteApi?functionName=getMetaData&symbol=%s", url.QueryEscape(symbol))
+	method := "GET"
+
+	req, err := http.NewRequest(method, url, nil)
+
+	if err != nil {
+		log.Printf("Error creating req %s\n", err)
+		return nil, err
+	}
+
+	req.Header.Add("Accept", "*/*")
+	req.Header.Add("User-Agent", "PostmanRuntime/7.51.1")
+
+	fmt.Printf("Calling: %s\n", url)
+	res, err := nseHTTPClient.Do(req)
+	if err != nil {
+		log.Printf("Error fetching req %s\n", err)
+		return nil, err
+	}
+	if res.StatusCode == 404 {
+		return nil, fmt.Errorf("Error getting metadata for symbol: %s", symbol)
+	}
+	defer res.Body.Close()
+
+	var result SymbolMetaData
+
+	if err = json.NewDecoder(res.Body).Decode(&result); err != nil {
+		log.Printf("Error decoding json response %s, %s \n", err, url)
+		return nil, err
+	}
+	return &result, nil
+
+}
+// METADATA ENDS
+
+
+// HISTORICAL TRDES START
+type HistoricalTrade struct {
+	O               float64   `json:"chOpeningPrice"`
+	H               float64   `json:"chTradeHighPrice"`
+	L               float64   `json:"chTradeLowPrice"`
+	C               float64   `json:"chClosingPrice"`
+	LastTradedPrice float64   `json:"chLastTradedPrice"`
+	Vwap            float64   `json:"vwap"`
+	Volume          uint64    `json:"chTotTradedQty"`
+	TradedValue     float64   `json:"chTotTradedVal"`
+	NoOfTrades      int64     `json:"chTotalTrades"`
+	Symbol          string    `json:"chSymbol"`
+	Date            TradeDate `json:"mtimestamp"`
+	YearHigh        float64   `json:"ch52WeekHighPrice"`
+	YearLow         float64   `json:"ch52WeekLowPrice"`
 }
 
 func (nseModel HistoricalTrade) MapToDb() *models.Historicaldata {
@@ -305,139 +447,6 @@ func (nseModel HistoricalTrade) MapToDb() *models.Historicaldata {
 	return trade
 }
 
-func (nse ShortTrade) MapToShortModel() *models.Shorts {
-	return &models.Shorts{
-		TradingSymbol: nse.SymbolName,
-		SecurityName:  nse.SecurityName,
-		Quantity:      int64(nse.Quantity),
-		Date:          time.Time(nse.TradeDate),
-	}
-}
-
-func (nse ShortTrade2) MapToShortModel() *models.Shorts {
-	return &models.Shorts{
-		TradingSymbol: nse.SymbolName,
-		SecurityName:  nse.SecurityName,
-		Quantity:      int64(nse.Quantity),
-		Date:          time.Time(nse.TradeDate),
-	}
-}
-
-var nseHTTPClient = &http.Client{
-	Transport: &http.Transport{
-		Proxy:               http.ProxyFromEnvironment,
-		MaxIdleConns:        100,
-		MaxIdleConnsPerHost: 20,
-		IdleConnTimeout:     90 * time.Second,
-	},
-	Timeout: 15 * time.Second,
-}
-
-func GetNseDetails(symbol, segment string) (*EquityRoot, error) {
-	url := fmt.Sprintf("https://www.nseindia.com/api/NextApi/apiClient/GetQuoteApi?functionName=getSymbolData&marketType=N&series=%s&symbol=%s", segment, url.QueryEscape(symbol))
-	method := "GET"
-
-	req, err := http.NewRequest(method, url, nil)
-
-	if err != nil {
-		log.Printf("Error creating req %s\n", err)
-		return nil, err
-	}
-
-	req.Header.Add("Accept", "*/*")
-	req.Header.Add("User-Agent", "PostmanRuntime/7.51.1")
-
-	reqDump, err := httputil.DumpRequestOut(req, true)
-	fmt.Println(string(reqDump))
-
-	res, err := nseHTTPClient.Do(req)
-	if err != nil {
-		log.Printf("Error fetching nse data %s\n", err)
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	var result EquityRoot
-
-	if err = json.NewDecoder(res.Body).Decode(&result); err != nil {
-		log.Printf("Error decoding json response %s, %s \n", err, url)
-		return nil, err
-	}
-	return &result, nil
-}
-
-func GetShortTrades(date time.Time) ([]ShortTrade, error) {
-	formattedDate := date.Format("02012006")
-	url := fmt.Sprintf("https://nsearchives.nseindia.com/archives/equities/shortSelling/shortselling_%s.csv", formattedDate)
-	method := "GET"
-
-	req, err := http.NewRequest(method, url, nil)
-
-	if err != nil {
-		log.Printf("Error creating req %s\n", err)
-		return nil, err
-	}
-
-	req.Header.Add("Accept", "*/*")
-	req.Header.Add("User-Agent", "PostmanRuntime/7.51.1")
-
-	reqDump, err := httputil.DumpRequestOut(req, true)
-	fmt.Println(string(reqDump))
-
-	res, err := nseHTTPClient.Do(req)
-	if err != nil {
-		log.Printf("Error fetching req %s\n", err)
-		return nil, err
-	}
-	if res.StatusCode == 404 {
-		return nil, fmt.Errorf("Report for %s is not yet available please try after some time", formattedDate)
-	}
-	defer res.Body.Close()
-
-	var trades []ShortTrade
-	if err := gocsv.Unmarshal(res.Body, &trades); err != nil {
-		return nil, err
-	}
-	return trades, nil
-}
-
-func GetMetaData(symbol string) (*SymbolMetaData, error) {
-
-	url := fmt.Sprintf("https://www.nseindia.com/api/NextApi/apiClient/GetQuoteApi?functionName=getMetaData&symbol=%s", url.QueryEscape(symbol))
-	method := "GET"
-
-	req, err := http.NewRequest(method, url, nil)
-
-	if err != nil {
-		log.Printf("Error creating req %s\n", err)
-		return nil, err
-	}
-
-	req.Header.Add("Accept", "*/*")
-	req.Header.Add("User-Agent", "PostmanRuntime/7.51.1")
-
-	reqDump, err := httputil.DumpRequestOut(req, true)
-	fmt.Println(string(reqDump))
-
-	res, err := nseHTTPClient.Do(req)
-	if err != nil {
-		log.Printf("Error fetching req %s\n", err)
-		return nil, err
-	}
-	if res.StatusCode == 404 {
-		return nil, fmt.Errorf("Error getting metadata for symbol: %s", symbol)
-	}
-	defer res.Body.Close()
-
-	var result SymbolMetaData
-
-	if err = json.NewDecoder(res.Body).Decode(&result); err != nil {
-		log.Printf("Error decoding json response %s, %s \n", err, url)
-		return nil, err
-	}
-	return &result, nil
-
-}
 
 func GetHistoricalData(symbol, series string, from, to time.Time) ([]HistoricalTrade, error) {
 	var comibnedData []HistoricalTrade
@@ -463,9 +472,7 @@ func GetHistoricalData(symbol, series string, from, to time.Time) ([]HistoricalT
 		req.Header.Add("Accept", "*/*")
 		req.Header.Add("User-Agent", "PostmanRuntime/7.51.1")
 
-		reqDump, err := httputil.DumpRequestOut(req, true)
-		fmt.Println(string(reqDump))
-
+		log.Printf("Calling: %s\n", url)
 		res, err := nseHTTPClient.Do(req)
 		if err != nil {
 			log.Printf("Error fetching req %s\n", err)
@@ -483,17 +490,9 @@ func GetHistoricalData(symbol, series string, from, to time.Time) ([]HistoricalT
 	return comibnedData, nil
 
 }
+// HISTORICAL TRADES ENDS
 
-/*
-func GetBulkDeal(symbol string, from, to time.Time) ([]BulkDeals, error) {
-	var comibnedData []BulkDeals
-	for d := from; !d.After(to); d = d.AddDate(1, 0, 0) {
-		url := fmt.Sprintf("https://www.nseindia.com/api/historicalOR/bulk-block-short-deals?optionType=bulk_deals&symbol=%s&from=26-07-2025&to=26-07-2026", symbol)
-	}
-
-}
-*/
-
+// INSIDER TRADES START
 type InsideTradesRoot struct {
 	AcqNameList []string      `json:"acqNameList"`
 	Data        []InsideTrade `json:"data"`
@@ -611,7 +610,7 @@ func GetInsideTrades(from, to time.Time) ([]InsideTrade, error) {
 		}
 		toStr := toCurr.Format("02-01-2006")
 		url := fmt.Sprintf("https://www.nseindia.com/api/corporates-pit?index=equities&from_date=%s&to_date=%s", dateFrom, toStr)
-		fmt.Printf("Calling: %s: \n", url)
+		log.Printf("Calling: %s\n", url)
 		method := "GET"
 		req, err := http.NewRequest(method, url, nil)
 		if err != nil {
@@ -633,6 +632,127 @@ func GetInsideTrades(from, to time.Time) ([]InsideTrade, error) {
 	}
 	return combinedResult, nil
 }
+// INSIDER TRADES ENDS
+
+
+// BULK AND BLOCK DEALS STARTS
+func (deal *BulkBlockDeals) MapToDb() (models.BulkBlockDeal, error) {
+	date, err := time.Parse("02-Jan-2006", deal.BDDTDATE)
+
+	if date.After(time.Now()) {
+		log.Printf("Date is in the future: %s\n", deal.BDDTDATE)
+		return models.BulkBlockDeal{}, fmt.Errorf("Date is in the future: %s", deal.BDDTDATE)
+	}
+	if err != nil {
+		log.Printf("Error parsing date: %s\n", deal.BDDTDATE)
+		return models.BulkBlockDeal{}, err
+	}
+	trimedPrice := strings.ReplaceAll(deal.BDTPWATP, ",", "")
+	price, err := strconv.ParseFloat(trimedPrice, 64)
+	if err != nil {
+		log.Printf("Error parsing price: %s to float, err: %v\n", deal.BDTPWATP, err)
+		return models.BulkBlockDeal{}, err
+	}
+
+	trimedQty := strings.ReplaceAll(deal.BDQTYTRD, ",", "")
+	qty, err := strconv.ParseInt(trimedQty, 10, 64)
+	if err != nil {
+		log.Printf("Error parsing quantity: %s to int, err: %v\n", deal.BDQTYTRD, err)
+		return models.BulkBlockDeal{}, err
+	}
+	
+	var buySell models.TradeType
+	if deal.BDBUYSELL == "BUY" {
+		buySell = models.Buy
+	} else if deal.BDBUYSELL == "SELL" {
+		buySell = models.Sell
+	} else {
+		slog.Error("Unkown Deal type found", "dealType", deal.BDBUYSELL)
+		return models.BulkBlockDeal{}, errors.New("Unknow dealType found")
+	}
+
+
+	dbModel := models.BulkBlockDeal{
+		TradingSymbol: strings.TrimSpace(deal.BDSYMBOL),
+		ScripName:     strings.TrimSpace(deal.BDSCRIPNAME),
+		ClientName:    strings.TrimSpace(deal.BDCLIENTNAME),
+		BuySell:       buySell,
+		Quantity:      qty,
+		Price:         price,
+		Date:          date,
+		Remarks:       strings.TrimSpace(deal.BDREMARKS),
+		DealType:      deal.dealType,
+	}
+	return dbModel, nil
+
+}
+
+type BulkBlockDeals struct {
+	BDDTDATE     string `csv:"Date "`
+	BDSYMBOL     string `csv:"Symbol "`
+	BDSCRIPNAME  string `csv:"Security Name "`
+	BDCLIENTNAME string `csv:"Client Name "`
+	BDBUYSELL    string `csv:"Buy / Sell "`
+	BDQTYTRD     string `csv:"Quantity Traded "`
+	BDTPWATP     string `csv:"Trade Price / Wght. Avg. Price "`
+	BDREMARKS    string `csv:"Remarks "`
+	dealType     models.DealType
+}
+
+func GetBulkBlockDeals(from, to time.Time, dealType models.DealType) ([]BulkBlockDeals, error) {
+	dateRanges := SplitDateRangeByYear(from, to)
+	var result []BulkBlockDeals
+	var optionType string
+
+	if dealType == models.DealTypeBulk {
+		optionType = "bulk_deals"
+	} else if dealType == models.DealTypeBlock {
+		optionType = "block_deals"
+	}
+
+	for dateRange := range dateRanges {
+		dateFrom := dateRanges[dateRange][0].Format("02-01-2006")
+		dateTo := dateRanges[dateRange][1].Format("02-01-2006")
+		url := fmt.Sprintf("https://www.nseindia.com/api/historicalOR/bulk-block-short-deals?optionType=%s&from=%s&to=%s&csv=true", optionType, dateFrom, dateTo)
+		method := "GET"
+
+		req, err := http.NewRequest(method, url, nil)
+
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Add("Accept", "*/*")
+		req.Header.Add("User-Agent", "PostmanRuntime/7.51.1")
+		log.Printf("Calling: %s\n", url)
+		res, err := nseHTTPClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		if res.StatusCode != http.StatusOK {
+			panic(fmt.Sprintf("API returned status: %s", res.Status))
+		}
+
+		defer res.Body.Close()
+		var intResult []BulkBlockDeals
+
+		resBody, err := skipBOM(res.Body)
+
+		if err = gocsv.Unmarshal(resBody, &intResult); err != nil {
+			log.Printf("Error unmarshalling csv response: %v\n", err)
+			return nil, err
+		}
+
+		log.Printf("Fetched %d %s deals from %s to %s\n", len(intResult), dealType, dateFrom, dateTo)
+		for r := range intResult {
+			intResult[r].dealType = dealType
+		}
+		result = append(result, intResult...)
+	}
+	log.Printf("Fetched total %d %s deals from %s to %s\n", len(result), dealType, from.Format("02-01-2006"), to.Format("02-01-2006"))
+	return result, nil
+
+}
+// BULK AND BLOCK DEALS END
 
 type SymbolChange struct {
 	OldSymbol string
@@ -643,3 +763,4 @@ func GetSymbolChanges() ([]SymbolChange, error) {
 	// TODO: fetch from NSE corporate actions API
 	return []SymbolChange{}, nil
 }
+

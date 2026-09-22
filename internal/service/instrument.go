@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"math"
 	"ninja-trader/internal/kite"
 	models "ninja-trader/internal/model"
@@ -23,6 +24,7 @@ var (
 
 type InstrumentService struct {
 	InstruRepo repo.InstrumentRepo
+	BBService  *BBService
 }
 
 func (s *InstrumentService) SyncInstruments() error {
@@ -102,7 +104,7 @@ func (service *InstrumentService) ProcessInstrument(instru *tradingClient.Instru
 func (s *InstrumentService) SyncShorts(from, to time.Time) error {
 	// TODO: implement short trades sync logic for date range
 
-	log.Printf("SyncShorts called for range %s to %s", from.Format("2006-01-02"), to.Format("2006-01-02"))
+	log.Printf("SyncShorts called for range %s to %s\n", from.Format("2006-01-02"), to.Format("2006-01-02"))
 	processWorkers := 2
 	var processWg sync.WaitGroup
 	processChan := make(chan []nse.ShortTrade, 100)
@@ -150,7 +152,7 @@ func (s *InstrumentService) SyncTradeHistory(symbol string, from time.Time, to t
 	workers := uint8(5)
 	tradeData, err := nse.GetHistoricalData(symbol, "EQ", from, to)
 	if err != nil {
-		fmt.Printf("Error fetching nse data from symbol: %s, %v, %v, %v\n", symbol, from, to, err)
+		log.Printf("Error fetching nse data from symbol: %s, %v, %v, %v\n", symbol, from, to, err)
 
 	}
 	for range workers {
@@ -251,7 +253,7 @@ func (s *InstrumentService) SyncSplitAndDividend(symbol string, minDate, maxDate
 
 	err = s.InstruRepo.BulkInsertEvents(dbList)
 	if err != nil {
-		fmt.Printf("Error inserting events to the database error: %v\n", err)
+		log.Printf("Error inserting events to the database error: %v\n", err)
 		return err
 	}
 	return nil
@@ -261,7 +263,7 @@ func (s *InstrumentService) SyncSplitAndDividend(symbol string, minDate, maxDate
 func (s *InstrumentService) ProcessTradeHistory(trades []models.Historicaldata) error {
 	err := s.InstruRepo.BulkInsertTradeHistory(trades)
 	if err != nil {
-		fmt.Println("Error saving trade history to the database")
+		log.Println("Error saving trade history to the database")
 		return err
 	}
 	return nil
@@ -286,6 +288,8 @@ func (s *InstrumentService) AddMissingAdjustedPrice(trade *models.Historicaldata
 
 func (s *InstrumentService) SyncDailyData() {
 	instruments, err := s.InstruRepo.GetAllInstruments()
+	// sync bulk and block deals
+	s.BBService.StartBulkBlockDealSyncWithoutDate()
 	if err != nil {
 		log.Printf("Error running daily sync error: %v\n", err)
 	}
@@ -299,6 +303,32 @@ func (s *InstrumentService) SyncDailyData() {
 			instrument.IsDailySyncFailed = false
 			s.InstruRepo.UpdateInstrument(&instrument)
 		}
+	}
+
+}
+
+// THIS IS A TEMPRORY FUNCTION
+func (s *InstrumentService) BackFillIntraDayVol() {
+	instruments, err := s.InstruRepo.GetAllInstruments()
+	if err != nil {
+		log.Printf("Error running daily sync error: %v\n", err)
+	}
+	for i, instrument := range instruments {
+		slog.Info("Running intradayvol backfill for", "symbol", instrument.TradingSymbol, "count", i, "pending", len(instruments) - i)
+		data, err := s.InstruRepo.GetHistoricalDataBySymbol(instrument.TradingSymbol)
+		if err != nil {
+			slog.Error("Error getting historical data for symbol", "symbol", instrument.TradingSymbol, "error", err)
+		}
+		for _, d := range data {
+			vol, err := s.BBService.GetIntraDayVolumeBySymbol(instrument.TradingSymbol, d.Date)
+			if err != nil {
+				slog.Error("Error getting intraday vol for symbol", "symbol", instrument.TradingSymbol, "date", d.Date, "error", err)
+
+			}
+			d.EstimatedIntraDayVol = vol
+			err = s.InstruRepo.UpdateHistoricalTrade(&d)
+		}
+		slog.Info("Completed intradayvol backfill for", "symbol", instrument.TradingSymbol)
 	}
 
 }
@@ -325,7 +355,7 @@ func (s *InstrumentService) ProcessDailyData(symbol string) error {
 
 	syncEndDate := time.Now()
 	log.Printf("ProcessDailyData [%s] syncing trade history from %s to %s\n", symbol, syncStartDate.Format("2006-01-02"), syncEndDate.Format("2006-01-02"))
-	metaData,err := nse.GetMetaData(symbol)
+	metaData, err := nse.GetMetaData(symbol)
 	series, err := metaData.GetActiveSeries()
 	if err != nil {
 		return fmt.Errorf("Error syncing symbol: %s, due to series not found, err: %s\n", symbol, err)
@@ -341,6 +371,11 @@ func (s *InstrumentService) ProcessDailyData(symbol string) error {
 	historicalTradesDb := make([]models.Historicaldata, len(historicalTrades))
 	for i, trade := range historicalTrades {
 		historicalTrade := *trade.MapToDb()
+		intradayVol, error := s.BBService.GetIntraDayVolumeBySymbol(symbol, historicalTrade.Date)
+		if error != nil {
+			slog.Error("Error getting intraday vol for", "symbol", symbol, "date", historicalTrade.Date)
+		}
+		historicalTrade.EstimatedIntraDayVol = intradayVol
 		historicalTrade.AdjustedClosePrice = trade.C
 		historicalTradesDb[i] = historicalTrade
 	}
@@ -388,7 +423,7 @@ func (s *InstrumentService) ProcessDailyData(symbol string) error {
 	log.Printf("ProcessDailyData completed for %s\n", symbol)
 
 	if err := s.ComputeSignals(symbol); err != nil {
-		fmt.Println("Calling compute signal")
+		log.Println("Calling compute signal")
 		log.Printf("ProcessDailyData [%s] error computing signals: %v\n", symbol, err)
 	}
 
@@ -444,8 +479,15 @@ func (s *InstrumentService) ComputeSignals(symbol string) error {
 		var sum float64
 		var volumeSum uint64
 		for j := i - 19; j <= i; j++ {
+			normalizedVolume := int64(data[j].Volume) - int64(data[j].EstimatedIntraDayVol)
+
+			if data[j].NoOfTrades > 0 {
+				data[j].VolumePerTrade = normalizedVolume/data[j].NoOfTrades
+			} else {
+				data[j].VolumePerTrade =  0
+			}
 			sum += float64(data[j].VolumePerTrade)
-			volumeSum += data[j].Volume
+			volumeSum += uint64(normalizedVolume)
 		}
 		vptMa20[i] = sum / 20.0
 		volumeMa20[i] = float64(volumeSum) / 20.0
@@ -471,47 +513,47 @@ func (s *InstrumentService) ComputeSignals(symbol string) error {
 			return d.AdjustedClosePrice
 		})
 
-    // Compute VPT MA20 z-score over window (only valid entries where i >= 19)
-    validStart := startIdx
-    if validStart < 19 {
-      validStart = 19
-    }
-    vptZ[i] = zScoreSlice(vptMa20, validStart, i)
+		// Compute VPT MA20 z-score over window (only valid entries where i >= 19)
+		validStart := startIdx
+		if validStart < 19 {
+			validStart = 19
+		}
+		vptZ[i] = zScoreSlice(vptMa20, validStart, i)
 	}
 
-  // Compute VPT score as percentage of rolling 3-year max VPT MA20, and divergence
-  vptScore := make([]float64, len(data))
-  divergence := make([]float64, len(data))
-  for i := range data {
-    if i < 19 {
-      continue
-    }
-    // Find rolling window start
-    windowStart := data[i].Date.AddDate(0, 0, -rollingWindowDays)
-    startIdx := i
-    for startIdx > 0 && data[startIdx-1].Date.After(windowStart) {
-      startIdx--
-    }
-    validStart := startIdx
-    if validStart < 19 {
-      validStart = 19
-    }
-    // Find min and max VPT MA20 in the window
-    minVpt := math.Inf(1)
-    maxVpt := math.Inf(-1)
-    for j := validStart; j <= i; j++ {
-      if vptMa20[j] < minVpt {
-        minVpt = vptMa20[j]
-      }
-      if vptMa20[j] > maxVpt {
-        maxVpt = vptMa20[j]
-      }
-    }
-    if maxVpt > minVpt {
-      vptScore[i] = (vptMa20[i] - minVpt) / (maxVpt - minVpt) * 100.0
-    }
-    divergence[i] = vptZ[i] - priceZ[i]
-  }
+	// Compute VPT score as percentage of rolling 3-year max VPT MA20, and divergence
+	vptScore := make([]float64, len(data))
+	divergence := make([]float64, len(data))
+	for i := range data {
+		if i < 19 {
+			continue
+		}
+		// Find rolling window start
+		windowStart := data[i].Date.AddDate(0, 0, -rollingWindowDays)
+		startIdx := i
+		for startIdx > 0 && data[startIdx-1].Date.After(windowStart) {
+			startIdx--
+		}
+		validStart := startIdx
+		if validStart < 19 {
+			validStart = 19
+		}
+		// Find min and max VPT MA20 in the window
+		minVpt := math.Inf(1)
+		maxVpt := math.Inf(-1)
+		for j := validStart; j <= i; j++ {
+			if vptMa20[j] < minVpt {
+				minVpt = vptMa20[j]
+			}
+			if vptMa20[j] > maxVpt {
+				maxVpt = vptMa20[j]
+			}
+		}
+		if maxVpt > minVpt {
+			vptScore[i] = (vptMa20[i] - minVpt) / (maxVpt - minVpt) * 100.0
+		}
+		divergence[i] = vptZ[i] - priceZ[i]
+	}
 
 	// Compute 3-year rolling max divergence
 	divMax3y := make([]float64, len(data))
@@ -544,7 +586,7 @@ func (s *InstrumentService) ComputeSignals(symbol string) error {
 			VptScore:        vptScore[i],
 			Divergence:      divergence[i],
 			DivergenceMax3y: divMax3y[i],
-			VolumeMa20: volumeMa20[i],
+			VolumeMa20:      volumeMa20[i],
 		})
 	}
 
@@ -600,5 +642,5 @@ func zScoreSlice(slice []float64, start, end int) float64 {
 	if variance <= 0 {
 		return 0
 	}
-  return (slice[end] - mean) / math.Sqrt(variance)
+	return (slice[end] - mean) / math.Sqrt(variance)
 }

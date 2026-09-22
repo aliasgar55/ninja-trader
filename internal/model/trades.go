@@ -6,12 +6,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type TradeType int
-
-const (
-	Buy TradeType = iota
-	Sell
-)
 
 type PaperTrade struct {
 	gorm.Model
