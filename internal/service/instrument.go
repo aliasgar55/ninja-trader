@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"math"
 	"ninja-trader/internal/kite"
 	models "ninja-trader/internal/model"
@@ -23,6 +24,7 @@ var (
 
 type InstrumentService struct {
 	InstruRepo repo.InstrumentRepo
+	BBService  *BBService
 }
 
 func (s *InstrumentService) SyncInstruments() error {
@@ -286,6 +288,8 @@ func (s *InstrumentService) AddMissingAdjustedPrice(trade *models.Historicaldata
 
 func (s *InstrumentService) SyncDailyData() {
 	instruments, err := s.InstruRepo.GetAllInstruments()
+	// sync bulk and block deals
+	s.BBService.StartBulkBlockDealSyncWithoutDate()
 	if err != nil {
 		log.Printf("Error running daily sync error: %v\n", err)
 	}
@@ -299,6 +303,32 @@ func (s *InstrumentService) SyncDailyData() {
 			instrument.IsDailySyncFailed = false
 			s.InstruRepo.UpdateInstrument(&instrument)
 		}
+	}
+
+}
+
+// THIS IS A TEMPRORY FUNCTION
+func (s *InstrumentService) BackFillIntraDayVol() {
+	instruments, err := s.InstruRepo.GetAllInstruments()
+	if err != nil {
+		log.Printf("Error running daily sync error: %v\n", err)
+	}
+	for i, instrument := range instruments {
+		slog.Info("Running intradayvol backfill for", "symbol", instrument.TradingSymbol, "count", i, "pending", len(instruments) - i)
+		data, err := s.InstruRepo.GetHistoricalDataBySymbol(instrument.TradingSymbol)
+		if err != nil {
+			slog.Error("Error getting historical data for symbol", "symbol", instrument.TradingSymbol, "error", err)
+		}
+		for _, d := range data {
+			vol, err := s.BBService.GetIntraDayVolumeBySymbol(instrument.TradingSymbol, d.Date)
+			if err != nil {
+				slog.Error("Error getting intraday vol for symbol", "symbol", instrument.TradingSymbol, "date", d.Date, "error", err)
+
+			}
+			d.EstimatedIntraDayVol = vol
+			err = s.InstruRepo.UpdateHistoricalTrade(&d)
+		}
+		slog.Info("Completed intradayvol backfill for", "symbol", instrument.TradingSymbol)
 	}
 
 }
@@ -341,6 +371,11 @@ func (s *InstrumentService) ProcessDailyData(symbol string) error {
 	historicalTradesDb := make([]models.Historicaldata, len(historicalTrades))
 	for i, trade := range historicalTrades {
 		historicalTrade := *trade.MapToDb()
+		intradayVol, error := s.BBService.GetIntraDayVolumeBySymbol(symbol, historicalTrade.Date)
+		if error != nil {
+			slog.Error("Error getting intraday vol for", "symbol", symbol, "date", historicalTrade.Date)
+		}
+		historicalTrade.EstimatedIntraDayVol = intradayVol
 		historicalTrade.AdjustedClosePrice = trade.C
 		historicalTradesDb[i] = historicalTrade
 	}
@@ -444,8 +479,15 @@ func (s *InstrumentService) ComputeSignals(symbol string) error {
 		var sum float64
 		var volumeSum uint64
 		for j := i - 19; j <= i; j++ {
+			normalizedVolume := int64(data[j].Volume) - int64(data[j].EstimatedIntraDayVol)
+
+			if data[j].NoOfTrades > 0 {
+				data[j].VolumePerTrade = normalizedVolume/data[j].NoOfTrades
+			} else {
+				data[j].VolumePerTrade =  0
+			}
 			sum += float64(data[j].VolumePerTrade)
-			volumeSum += data[j].Volume
+			volumeSum += uint64(normalizedVolume)
 		}
 		vptMa20[i] = sum / 20.0
 		volumeMa20[i] = float64(volumeSum) / 20.0

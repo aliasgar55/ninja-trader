@@ -291,9 +291,10 @@ func (h *InstrumentHandler) ChartData(w http.ResponseWriter, r *http.Request) {
 	deliveryValue := make([]float64, len(rows))
 	vptMa20 := make([]float64, len(rows))
 	vptScore := make([]float64, len(rows))
-	divergence := make([]float64, len(rows))
-	divergenceMax3y := make([]float64, len(rows))
-	for i, r := range rows {
+  divergence := make([]float64, len(rows))
+  divergenceMax3y := make([]float64, len(rows))
+  intraDayVol := make([]uint64, len(rows))
+  for i, r := range rows {
 		labels[i] = r.Date.Format("02 Jan 06")
 		closeValues[i] = r.C
 		lowValues[i] = r.L
@@ -313,8 +314,9 @@ func (h *InstrumentHandler) ChartData(w http.ResponseWriter, r *http.Request) {
 		}
 		vptMa20[i] = r.VptMa20
 		vptScore[i] = r.VptScore
-		divergence[i] = r.Divergence
-		divergenceMax3y[i] = r.DivergenceMax3y
+    divergence[i] = r.Divergence
+    divergenceMax3y[i] = r.DivergenceMax3y
+    intraDayVol[i] = r.EstimatedIntraDayVol
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
@@ -331,8 +333,9 @@ func (h *InstrumentHandler) ChartData(w http.ResponseWriter, r *http.Request) {
 		"deliveryValue":      deliveryValue,
 		"vptMa20":            vptMa20,
 		"vptScore":           vptScore,
-		"divergence":         divergence,
-		"divergenceMax3y":    divergenceMax3y,
+    "divergence":         divergence,
+    "divergenceMax3y":    divergenceMax3y,
+    "intraDayVol":        intraDayVol,
 	})
 }
 
@@ -720,4 +723,13 @@ func (h *InstrumentHandler) NotesPage(w http.ResponseWriter, r *http.Request) {
 		Groups []symbolGroup
 		Total  int
 	}{groups, len(views)})
+}
+
+func (h *InstrumentHandler) BackFillIntraDayVol(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	h.Service.BackFillIntraDayVol()
+	w.WriteHeader(http.StatusOK)
 }

@@ -97,10 +97,10 @@ func main() {
 	}
 	defer tickerService.Stop()
 
-	instrumentService := &service.InstrumentService{InstruRepo: instrumentRepo}
+	bbService := service.NewBBService(&repo.BulkBlockDealRepo{Db: db})
+	instrumentService := &service.InstrumentService{InstruRepo: instrumentRepo, BBService: bbService}
 	tradeService := &service.TradeService{TradeRepo: tradeRepo, InstruRepo: instrumentRepo}
 	insideTradesService := &service.InsiderTradesService{InsiderTradeRepo: insideTradesRepo}
-	bbService := service.NewBBService(repo.BulkBlockDealRepo{Db: db})
 
 	instrumentHandler := &handler.InstrumentHandler{Repo: instrumentRepo, TradeRepo: tradeRepo, Service: instrumentService, Tmpl: tmpl}
 	insiderTradesHandler := &handler.InsiderTradesHandler{Service: insideTradesService, Tmpl: tmpl}
@@ -175,6 +175,7 @@ func main() {
 	http.HandleFunc("/api/alerts", breadthHandler.AlertsAPI)
 	http.HandleFunc("/range", instrumentHandler.RangePage)
 	http.HandleFunc("/notes", instrumentHandler.NotesPage)
+	http.HandleFunc("/backfill-intraday-vol", instrumentHandler.BackFillIntraDayVol)
 
 	addr := ":6969"
 	log.Printf("UI available at http://localhost%s\n", addr)

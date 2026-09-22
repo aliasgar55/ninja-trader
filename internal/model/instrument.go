@@ -41,13 +41,6 @@ type TagHistory struct {
 	UpdatedOn     time.Time
 }
 
-type EventType int
-
-const (
-	Dividend EventType = iota
-	Split
-)
-
 type Event struct {
 	gorm.Model
 	InstrumentID  uint `gorm:"not null;index"`
@@ -86,6 +79,7 @@ type Historicaldata struct {
 	Divergence                      float64
 	DivergenceMax3y                 float64
 	DeliveryValue                   float64
+	EstimatedIntraDayVol            uint64
 }
 
 type Shorts struct {

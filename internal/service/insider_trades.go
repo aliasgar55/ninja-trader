@@ -44,6 +44,7 @@ func (s *InsiderTradesService) StartInsiderTradeSync(from, to time.Time) {
 			toCurr = to
 		}
 		log.Printf("Getting insider trades from: %v, to: %v\n", from, toCurr)
+		// TODO: replace with bse, it returns correct data, nse data lags by a quater
 		insiderTrades, err := nse.GetInsideTrades(d, toCurr)
 		log.Printf("Fetched trades: %d\n", len(insiderTrades))
 		if err != nil {

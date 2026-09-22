@@ -23,6 +23,13 @@ func (repo *BulkBlockDealRepo) GetBySymbol(symbol string) ([]models.BulkBlockDea
 	return results, err
 }
 
+func (repo *BulkBlockDealRepo) GetBySymbolAndDate(symbol string, date time.Time) ([]models.BulkBlockDeal, error) {
+	var results []models.BulkBlockDeal
+	err := repo.Db.Where("trading_symbol = ? AND date = ?", symbol, date).
+		Find(&results).Error
+	return results, err
+}
+
 func (repo *BulkBlockDealRepo) GetByDateRange(from, to time.Time) ([]models.BulkBlockDeal, error) {
 	var results []models.BulkBlockDeal
 	err := repo.Db.Where("date BETWEEN ? AND ?", from, to).

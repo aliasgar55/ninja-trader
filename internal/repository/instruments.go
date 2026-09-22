@@ -91,7 +91,7 @@ func buildSortOrder(sort, order string) string {
 	if order == "desc" {
 		dir = "DESC"
 	}
-	return col + " " + dir + ", instruments.trading_symbol ASC"
+	return col + " " + dir + ", instruments.market_cap DESC"
 }
 
 func (repo *InstrumentRepo) withHoldingQueryForDate(date string) *gorm.DB {
@@ -259,101 +259,6 @@ func (repo *InstrumentRepo) GetAdjacentRangeSymbols(symbol, sort, order string) 
 		}
 	}
 	return
-}
-
-func (repo *InstrumentRepo) CreateShorts(shorts []models.Shorts) error {
-	return repo.Db.Create(&shorts).Error
-}
-
-func (repo *InstrumentRepo) DeleteShortsByDate(date time.Time) error {
-	return repo.Db.Where("date = ?", date).Delete(&models.Shorts{}).Error
-}
-
-type ShortsByDate struct {
-	Date     time.Time
-	Quantity int64
-}
-
-func (repo *InstrumentRepo) GetShortsBySymbol(symbol string, since *time.Time) ([]ShortsByDate, error) {
-	var results []ShortsByDate
-	q := repo.Db.Model(&models.Shorts{}).
-		Select("date, SUM(quantity) as quantity").
-		Where("trading_symbol = ?", symbol)
-	if since != nil {
-		q = q.Where("date >= ?", *since)
-	}
-	err := q.Group("date").Order("date ASC").Scan(&results).Error
-	return results, err
-}
-
-func (repo *InstrumentRepo) GetShortsBySymbolAndYear(symbol string, year string) ([]ShortsByDate, error) {
-	var results []ShortsByDate
-	err := repo.Db.Model(&models.Shorts{}).
-		Select("date, SUM(quantity) as quantity").
-		Where("trading_symbol = ? AND EXTRACT(YEAR FROM date) = ?", symbol, year).
-		Group("date").Order("date ASC").Scan(&results).Error
-	return results, err
-}
-
-type ShortSymbolByDate struct {
-	Date          time.Time
-	TradingSymbol string
-	Quantity      int64
-}
-
-func (repo *InstrumentRepo) GetShortSymbolsGroupedByDate(since *time.Time) ([]ShortSymbolByDate, error) {
-	var results []ShortSymbolByDate
-	q := repo.Db.Model(&models.Shorts{}).
-		Select("date, trading_symbol, SUM(quantity) as quantity")
-	if since != nil {
-		q = q.Where("date >= ?", *since)
-	}
-	err := q.Group("date, trading_symbol").Order("date DESC, quantity DESC").Scan(&results).Error
-	return results, err
-}
-
-func (repo *InstrumentRepo) GetShortSymbolsGroupedByDateAndYear(year string) ([]ShortSymbolByDate, error) {
-	var results []ShortSymbolByDate
-	err := repo.Db.Model(&models.Shorts{}).
-		Select("date, trading_symbol, SUM(quantity) as quantity").
-		Where("EXTRACT(YEAR FROM date) = ?", year).
-		Group("date, trading_symbol").Order("date DESC, quantity DESC").Scan(&results).Error
-	return results, err
-}
-
-type TotalShortsByDate struct {
-	Date        time.Time
-	Quantity    int64
-	SymbolCount int64
-}
-
-func (repo *InstrumentRepo) GetTotalShortsByDate(since *time.Time) ([]TotalShortsByDate, error) {
-	var results []TotalShortsByDate
-	q := repo.Db.Model(&models.Shorts{}).
-		Select("date, SUM(quantity) as quantity, COUNT(DISTINCT trading_symbol) as symbol_count")
-	if since != nil {
-		q = q.Where("date >= ?", *since)
-	}
-	err := q.Group("date").Order("date ASC").Scan(&results).Error
-	return results, err
-}
-
-func (repo *InstrumentRepo) GetTotalShortsByDateAndYear(year string) ([]TotalShortsByDate, error) {
-	var results []TotalShortsByDate
-	err := repo.Db.Model(&models.Shorts{}).
-		Select("date, SUM(quantity) as quantity, COUNT(DISTINCT trading_symbol) as symbol_count").
-		Where("EXTRACT(YEAR FROM date) = ?", year).
-		Group("date").Order("date ASC").Scan(&results).Error
-	return results, err
-}
-
-func (repo *InstrumentRepo) GetShortsYears() ([]int, error) {
-	var years []int
-	err := repo.Db.Model(&models.Shorts{}).
-		Select("DISTINCT EXTRACT(YEAR FROM date)::int AS year").
-		Order("year DESC").
-		Pluck("year", &years).Error
-	return years, err
 }
 
 func (repo *InstrumentRepo) BulkUpdateAdjustedClosePrice(updates []models.AdjustedCloseUpdate) error {
@@ -671,17 +576,21 @@ func (repo *InstrumentRepo) GetLatestAdjustedClose(symbol string) (float64, erro
 
 func (repo *InstrumentRepo) RenameSymbol(oldSymbol, newSymbol string) error {
 	return repo.Db.Transaction(func(tx *gorm.DB) error {
-		tables := []struct{ table, column string }{
-			{"instruments", "trading_symbol"},
-			{"historicaldata", "symbol"},
-			{"shorts", "trading_symbol"},
-			{"paper_trades", "trading_symbol"},
-			{"paper_trade_logs", "trading_symbol"},
-			{"gtt_orders", "trading_symbol"},
-			{"tag_histories", "trading_symbol"},
-			{"events", "trading_symbol"},
-			{"notes", "trading_symbol"},
-		}
+    tables := []struct{ table, column string }{
+      {"instruments", "trading_symbol"},
+      {"historicaldata", "symbol"},
+      {"shorts", "trading_symbol"},
+      {"paper_trades", "trading_symbol"},
+      {"paper_trade_logs", "trading_symbol"},
+      {"gtt_orders", "trading_symbol"},
+      {"tag_histories", "trading_symbol"},
+      {"events", "trading_symbol"},
+      {"notes", "trading_symbol"},
+      {"bulk_block_deals", "trading_symbol"},
+      {"insider_trade_transactions", "symbol"},
+      {"kite_alerts", "trading_symbol"},
+      {"alert_logs", "trading_symbol"},
+    }
 		for _, t := range tables {
 			if err := tx.Exec("UPDATE "+t.table+" SET "+t.column+" = ? WHERE "+t.column+" = ?", newSymbol, oldSymbol).Error; err != nil {
 				return err
